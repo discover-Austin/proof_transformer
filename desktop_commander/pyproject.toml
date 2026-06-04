@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "desktop-commander"
+version = "0.1.0"
+description = "Standalone desktop task control center for terminal, web, and file actions"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Austin Grandstaff" },
+  { name = "OpenAI coding assistant" },
+]
+dependencies = []
+
+[project.scripts]
+desktop-commander = "desktop_commander.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

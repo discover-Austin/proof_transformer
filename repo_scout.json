@@ -1,0 +1,1071 @@
+{
+  "absolute_root_redacted": "D:/.../AUSTIN_AI_BRAIN",
+  "focus_files": [],
+  "focus_paths": [
+    "src/proof_transformer/peds",
+    "tests",
+    "peds_schema.sql",
+    "src/proof_transformer/db.py"
+  ],
+  "generated_at": "2026-06-04T04:24:46+00:00",
+  "git": {
+    "branch": "fatal: not a git repository (or any of the parent directories): .git",
+    "last_commit": "fatal: not a git repository (or any of the parent directories): .git",
+    "status_short": "fatal: not a git repository (or any of the parent directories): .git",
+    "tracked_files_count": 1
+  },
+  "root_name": "AUSTIN_AI_BRAIN",
+  "safety": {
+    "excluded_dirs": [
+      ".cache",
+      ".git",
+      ".idea",
+      ".mypy_cache",
+      ".next",
+      ".pytest_cache",
+      ".ruff_cache",
+      ".tox",
+      ".turbo",
+      ".venv",
+      ".vscode",
+      "__pycache__",
+      "build",
+      "dist",
+      "env",
+      "node_modules",
+      "venv"
+    ],
+    "note": "This scout intentionally excludes likely secrets, .git internals, caches, venvs, node_modules, and large/binary files.",
+    "secret_name_parts": [
+      ".env",
+      ".p12",
+      ".pfx",
+      "credential",
+      "credentials",
+      "id_ed25519",
+      "id_rsa",
+      "key.pem",
+      "private",
+      "secret",
+      "secrets",
+      "token",
+      "tokens"
+    ]
+  },
+  "tree": [
+    {
+      "is_text": true,
+      "path": "scout_repo.py",
+      "size_bytes": 7914,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "logs/proof_transformer_audit.json",
+      "size_bytes": 7445,
+      "suffix": ".json"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_0bd6c507dd0c4bb2b84441f721eabc58/combined.txt",
+      "size_bytes": 241,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_0bd6c507dd0c4bb2b84441f721eabc58/stderr.txt",
+      "size_bytes": 54,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_0bd6c507dd0c4bb2b84441f721eabc58/stdout.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_208c3ffd2adc4b68bbbcf2e8ed8e627c/combined.txt",
+      "size_bytes": 148,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_208c3ffd2adc4b68bbbcf2e8ed8e627c/stderr.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_208c3ffd2adc4b68bbbcf2e8ed8e627c/stdout.txt",
+      "size_bytes": 21,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_48b2c92f9ce64412a68cc63b3940e297/combined.txt",
+      "size_bytes": 502,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_48b2c92f9ce64412a68cc63b3940e297/stderr.txt",
+      "size_bytes": 341,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_48b2c92f9ce64412a68cc63b3940e297/stdout.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_6828059ec8464f5899e1115db0d70ee7/combined.txt",
+      "size_bytes": 148,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_6828059ec8464f5899e1115db0d70ee7/stderr.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_6828059ec8464f5899e1115db0d70ee7/stdout.txt",
+      "size_bytes": 21,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_9b51ea4d4c5344c2adb10d6ffa92780e/combined.txt",
+      "size_bytes": 142,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_9b51ea4d4c5344c2adb10d6ffa92780e/stderr.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_9b51ea4d4c5344c2adb10d6ffa92780e/stdout.txt",
+      "size_bytes": 18,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_fc3c0d2f993d4661aa1f963b77e919c4/combined.txt",
+      "size_bytes": 502,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_fc3c0d2f993d4661aa1f963b77e919c4/stderr.txt",
+      "size_bytes": 341,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": true,
+      "path": "logs/executions/exec_fc3c0d2f993d4661aa1f963b77e919c4/stdout.txt",
+      "size_bytes": 0,
+      "suffix": ".txt"
+    },
+    {
+      "is_text": false,
+      "path": "memory/brain.sqlite3",
+      "size_bytes": 1019904,
+      "suffix": ".sqlite3"
+    },
+    {
+      "is_text": false,
+      "path": "proof_transformer/.gitignore",
+      "size_bytes": 135,
+      "suffix": ""
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/IP_SAFEGUARDING.md",
+      "size_bytes": 641,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/LICENSE.md",
+      "size_bytes": 2514,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/NOTICE.md",
+      "size_bytes": 527,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/PUBLIC_DISCLOSURE.md",
+      "size_bytes": 784,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/README.md",
+      "size_bytes": 12716,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/peds_schema.sql",
+      "size_bytes": 8314,
+      "suffix": ".sql"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/pyproject.toml",
+      "size_bytes": 908,
+      "suffix": ".toml"
+    },
+    {
+      "is_text": false,
+      "path": "proof_transformer/bin/austin-brain-chat.cmd",
+      "size_bytes": 188,
+      "suffix": ".cmd"
+    },
+    {
+      "is_text": false,
+      "path": "proof_transformer/bin/austin-brain.cmd",
+      "size_bytes": 183,
+      "suffix": ".cmd"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/bin/austin-brain.ps1",
+      "size_bytes": 266,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/ask_brain.py",
+      "size_bytes": 499,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/autonomous_repair.py",
+      "size_bytes": 552,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/health_check.py",
+      "size_bytes": 390,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/index_workspace.py",
+      "size_bytes": 511,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/ingest_notes.py",
+      "size_bytes": 499,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/plan_repair.py",
+      "size_bytes": 540,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/propose_learning_event.py",
+      "size_bytes": 534,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/review_execution.py",
+      "size_bytes": 545,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/run_command.py",
+      "size_bytes": 517,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/run_queue.py",
+      "size_bytes": 464,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/serve_queue.py",
+      "size_bytes": 579,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/train_ranker_from_feedback.py",
+      "size_bytes": 938,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/verify_ledger.py",
+      "size_bytes": 397,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/examples/watch_workspace.py",
+      "size_bytes": 717,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/init_brain.ps1",
+      "size_bytes": 247,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/install_system_integration.ps1",
+      "size_bytes": 1147,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_autonomous_repair.ps1",
+      "size_bytes": 564,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_chat.ps1",
+      "size_bytes": 347,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_command.ps1",
+      "size_bytes": 324,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_demo.ps1",
+      "size_bytes": 308,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_tests.ps1",
+      "size_bytes": 308,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_worker.ps1",
+      "size_bytes": 341,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/run_workspace_watcher.ps1",
+      "size_bytes": 563,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/start_api_server.ps1",
+      "size_bytes": 342,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/scripts/uninstall_system_integration.ps1",
+      "size_bytes": 636,
+      "suffix": ".ps1"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/__init__.py",
+      "size_bytes": 100,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/cli.py",
+      "size_bytes": 11080,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/config.py",
+      "size_bytes": 2571,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/db.py",
+      "size_bytes": 27079,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ids.py",
+      "size_bytes": 346,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/paths.py",
+      "size_bytes": 3712,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/server.py",
+      "size_bytes": 7852,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/timeutils.py",
+      "size_bytes": 665,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/__init__.py",
+      "size_bytes": 461,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/actions.py",
+      "size_bytes": 400,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/command_runner.py",
+      "size_bytes": 6173,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/orchestrator.py",
+      "size_bytes": 28763,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/patching.py",
+      "size_bytes": 3341,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/repair_planner.py",
+      "size_bytes": 6214,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/session.py",
+      "size_bytes": 736,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/task_queue.py",
+      "size_bytes": 8450,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/worker.py",
+      "size_bytes": 1162,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/agent/workspace_watcher.py",
+      "size_bytes": 1550,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/__init__.py",
+      "size_bytes": 215,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/adapter_registry.py",
+      "size_bytes": 4798,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/evals.py",
+      "size_bytes": 573,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/event_classifier.py",
+      "size_bytes": 614,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/example_builder.py",
+      "size_bytes": 841,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/ranker.py",
+      "size_bytes": 3049,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/learning/ranker_trainer.py",
+      "size_bytes": 3373,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/__init__.py",
+      "size_bytes": 327,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/blocks.py",
+      "size_bytes": 593,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/candidates.py",
+      "size_bytes": 13755,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/hashing.py",
+      "size_bytes": 1242,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/ledger.py",
+      "size_bytes": 7313,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/models.py",
+      "size_bytes": 2411,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/policy.py",
+      "size_bytes": 2473,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/ledger/verify.py",
+      "size_bytes": 365,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/__init__.py",
+      "size_bytes": 886,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/chunking.py",
+      "size_bytes": 1971,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/code_symbols.py",
+      "size_bytes": 5246,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/context_compiler.py",
+      "size_bytes": 6872,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/documents.py",
+      "size_bytes": 5506,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/embeddings.py",
+      "size_bytes": 5245,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/graph.py",
+      "size_bytes": 11796,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/retrieval.py",
+      "size_bytes": 5749,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/vector_store.py",
+      "size_bytes": 2692,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/memory/workspace.py",
+      "size_bytes": 12649,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/model/__init__.py",
+      "size_bytes": 56,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/model/fallback_generator.py",
+      "size_bytes": 2886,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/model/llama_cpp_client.py",
+      "size_bytes": 2110,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/model/local_llm.py",
+      "size_bytes": 1534,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/model/ollama_client.py",
+      "size_bytes": 2011,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/__init__.py",
+      "size_bytes": 1214,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/canary.py",
+      "size_bytes": 6955,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/replay.py",
+      "size_bytes": 10175,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/scoring.py",
+      "size_bytes": 10478,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/shadow.py",
+      "size_bytes": 11930,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/peds/store.py",
+      "size_bytes": 15832,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/__init__.py",
+      "size_bytes": 110,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/base.py",
+      "size_bytes": 705,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/consensus.py",
+      "size_bytes": 4220,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/contradiction.py",
+      "size_bytes": 2846,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/evidence.py",
+      "size_bytes": 1421,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/outcome.py",
+      "size_bytes": 1458,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/preference.py",
+      "size_bytes": 2053,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/replay.py",
+      "size_bytes": 2358,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/src/proof_transformer/validators/scope.py",
+      "size_bytes": 2228,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/common.py",
+      "size_bytes": 1653,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_api_server.py",
+      "size_bytes": 1400,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_command_runner.py",
+      "size_bytes": 1259,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_consensus.py",
+      "size_bytes": 1183,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_context_compiler.py",
+      "size_bytes": 1103,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_embedding_backend.py",
+      "size_bytes": 1135,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_graph_memory.py",
+      "size_bytes": 1327,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_health.py",
+      "size_bytes": 564,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_learning_candidate_flow.py",
+      "size_bytes": 1410,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_ledger_hash_chain.py",
+      "size_bytes": 1209,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_patching.py",
+      "size_bytes": 999,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_paths.py",
+      "size_bytes": 1566,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_canary.py",
+      "size_bytes": 13271,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_replay.py",
+      "size_bytes": 14504,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_schema.py",
+      "size_bytes": 5484,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_scoring.py",
+      "size_bytes": 8444,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_shadow.py",
+      "size_bytes": 14579,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_peds_store.py",
+      "size_bytes": 9507,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_queue_worker.py",
+      "size_bytes": 707,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_ranker_learning.py",
+      "size_bytes": 1897,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_repair_planning.py",
+      "size_bytes": 1654,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_retrieval.py",
+      "size_bytes": 1165,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_task_queue.py",
+      "size_bytes": 1880,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_vector_store.py",
+      "size_bytes": 1797,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_workspace_indexing.py",
+      "size_bytes": 1537,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_workspace_sync.py",
+      "size_bytes": 1706,
+      "suffix": ".py"
+    },
+    {
+      "is_text": true,
+      "path": "proof_transformer/tests/test_workspace_watcher.py",
+      "size_bytes": 818,
+      "suffix": ".py"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-30T21-30-51Z.jsonl",
+      "size_bytes": 18327,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-30T21-31-02Z.jsonl",
+      "size_bytes": 3837,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T00-56-32Z.jsonl",
+      "size_bytes": 28346,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-12-16Z.jsonl",
+      "size_bytes": 22747,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-13-50Z.jsonl",
+      "size_bytes": 26343,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-14-35Z.jsonl",
+      "size_bytes": 26409,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-17-53Z.jsonl",
+      "size_bytes": 24059,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-20-04Z.jsonl",
+      "size_bytes": 23647,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-20-11Z.jsonl",
+      "size_bytes": 690,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T05-20-15Z.jsonl",
+      "size_bytes": 18658,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T10-26-30Z.jsonl",
+      "size_bytes": 28560,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T10-28-28Z.jsonl",
+      "size_bytes": 37057,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T11-05-26Z.jsonl",
+      "size_bytes": 2121,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T11-07-31Z.jsonl",
+      "size_bytes": 4044,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T11-07-36Z.jsonl",
+      "size_bytes": 652,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T11-10-09Z.jsonl",
+      "size_bytes": 4559,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T11-11-54Z.jsonl",
+      "size_bytes": 4355,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T17-16-58Z.jsonl",
+      "size_bytes": 4566,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T17-18-12Z.jsonl",
+      "size_bytes": 2291,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": false,
+      "path": "sessions/session_2026-05-31T20-10-25Z.jsonl",
+      "size_bytes": 8649,
+      "suffix": ".jsonl"
+    },
+    {
+      "is_text": true,
+      "path": "temp/demo_notes.md",
+      "size_bytes": 349,
+      "suffix": ".md"
+    },
+    {
+      "is_text": true,
+      "path": "temp/autonomy_demo/broken.py",
+      "size_bytes": 46,
+      "suffix": ".py"
+    }
+  ]
+}

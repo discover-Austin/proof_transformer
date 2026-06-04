@@ -1,0 +1,30 @@
+{
+  "task_text": "Open PowerShell, type a command, search the web, and open this folder.",
+  "steps": [
+    {
+      "action": "launch_process",
+      "command": ["powershell.exe", "-NoExit"]
+    },
+    {
+      "action": "wait",
+      "seconds": 1.0
+    },
+    {
+      "action": "focus_window",
+      "title": "PowerShell"
+    },
+    {
+      "action": "type_text",
+      "text": "Get-Date",
+      "press_enter": true
+    },
+    {
+      "action": "search_web",
+      "query": "Windows PowerShell shortcuts"
+    },
+    {
+      "action": "open_path",
+      "path": "."
+    }
+  ]
+}

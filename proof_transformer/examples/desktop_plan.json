@@ -1,0 +1,29 @@
+{
+  "steps": [
+    {
+      "action": "launch_process",
+      "command": ["powershell.exe", "-NoExit"]
+    },
+    {
+      "action": "wait",
+      "seconds": 1.0
+    },
+    {
+      "action": "focus_window",
+      "title": "PowerShell"
+    },
+    {
+      "action": "type_text",
+      "text": "Get-Location",
+      "press_enter": true
+    },
+    {
+      "action": "search_web",
+      "query": "OpenAI API docs responses API"
+    },
+    {
+      "action": "open_path",
+      "path": "README.md"
+    }
+  ]
+}

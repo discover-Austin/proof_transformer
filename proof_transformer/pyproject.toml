@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proof-transformer"
+version = "0.3.0"
+description = "Austin Grandstaff's Proof-of-Improvement Persistent Transformer substrate"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "Austin Grandstaff" },
+  { name = "OpenAI coding assistant" },
+]
+license = { file = "LICENSE.md" }
+keywords = ["local-ai", "persistent-transformer", "continual-learning", "sqlite", "retrieval", "graph-memory"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: Microsoft :: Windows",
+]
+
+dependencies = []
+
+[project.scripts]
+proof-transformer = "proof_transformer.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
