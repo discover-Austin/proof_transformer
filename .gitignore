@@ -15,5 +15,6 @@ logs/
 sessions/
 temp/
 memory/
+desktop_commander/
 **/runtime_data/
 **/__pycache__/
