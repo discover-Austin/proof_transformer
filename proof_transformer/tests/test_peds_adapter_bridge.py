@@ -9,13 +9,14 @@ from proof_transformer.peds.adapter_bridge import (
     register_training_artifact,
     validate_training_artifact_for_candidate,
 )
+from proof_transformer.peds.local_signals import load_candidate_local_adapter
 from proof_transformer.peds.store import create_candidate, get_candidate_current_state
 from proof_transformer.peds.trainer import run_prepared_training_run
 from proof_transformer.peds.training import prepare_training_run
 
 
 class PEDSAdapterBridgeTests(BrainTestCase):
-    def _candidate(self, suffix: str) -> dict:
+    def _candidate(self, suffix: str, *, manifest: dict[str, Any] | None = None) -> dict:
         return create_candidate(
             self.conn,
             {
@@ -26,7 +27,7 @@ class PEDSAdapterBridgeTests(BrainTestCase):
                 "theta_version": f"theta_{suffix}",
                 "psi_version": "psi_v1",
                 "delta_description": f"bridge parent {suffix}",
-                "manifest": {"suffix": suffix},
+                "manifest_json": manifest or {"suffix": suffix},
             },
         )
 
@@ -250,6 +251,59 @@ class PEDSAdapterBridgeTests(BrainTestCase):
         self.assertTrue(manifest["trained"])
         self.assertEqual(manifest["trainer_mode"], "local_json_trainer")
         self.assertEqual(manifest["adapter_ref"]["status"], "trained")
+
+    def test_trained_candidate_loads_local_json_adapter_artifact(self) -> None:
+        parent, run = self._completed_run("load_trained_adapter", mode="local_json_trainer")
+
+        candidate = create_candidate_from_training_run(
+            self.conn,
+            run["training_run_id"],
+            parent_candidate_id=parent["candidate_id"],
+            adapter_name="peds_theta_adapter",
+            operator="owner",
+            require_trained=True,
+        )
+
+        artifact = load_candidate_local_adapter(self.conn, candidate)
+
+        self.assertIsNotNone(artifact)
+        self.assertTrue(artifact["trained"])
+        self.assertEqual(artifact["mode"], "local_json_trainer")
+        self.assertIn("learned_parameters", artifact)
+
+    def test_adapter_candidate_inherits_parent_theta_strategy(self) -> None:
+        parent = self._candidate(
+            "inherit_theta_strategy",
+            manifest={
+                "suffix": "inherit_theta_strategy",
+                "theta_strategy": "acceptance_checklist_first",
+            },
+        )
+        run = prepare_training_run(
+            self.conn,
+            self._manifest(parent["candidate_id"], "inherit_theta_strategy"),
+            trainer_name="local_adapter_stub",
+            trainer_config={"epochs": 1},
+            output_dir="adapters/peds/inherit_theta_strategy",
+        )
+        result = run_prepared_training_run(
+            self.conn,
+            run["training_run_id"],
+            operator="owner",
+            mode="local_json_trainer",
+            artifact_dir=str(self.paths.root / "peds_adapter_artifacts" / "inherit_theta_strategy"),
+        )
+
+        candidate = create_candidate_from_training_run(
+            self.conn,
+            result["training_run"]["training_run_id"],
+            parent_candidate_id=parent["candidate_id"],
+            adapter_name="peds_theta_adapter",
+            operator="owner",
+            require_trained=True,
+        )
+
+        self.assertEqual(candidate["manifest"]["theta_strategy"], "acceptance_checklist_first")
 
     def test_parent_candidate_remains_unchanged(self) -> None:
         parent, run = self._completed_run("parent_unchanged")

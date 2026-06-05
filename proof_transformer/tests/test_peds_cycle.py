@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import inspect
 import json
 from pathlib import Path
 
 from common import BrainTestCase
 from proof_transformer.peds import cycle
 from proof_transformer.peds.cycle import advance_peds_cycle, plan_peds_cycle, run_peds_cycle_until_blocked
+from proof_transformer.peds.local_signals import acceptance_checklist_replay_evaluator, load_candidate_local_adapter
 from proof_transformer.peds.shadow import complete_shadow_run, record_shadow_event, start_shadow_run
 from proof_transformer.peds.store import (
     create_candidate,
@@ -49,6 +49,8 @@ class PEDSCycleTests(BrainTestCase):
         *,
         split: str = "replay",
         timestamp: str = "2026-06-02T00:00:00Z",
+        prompt: str | None = None,
+        acceptance_tests: list[str] | None = None,
     ) -> dict:
         return record_episode(
             self.conn,
@@ -60,8 +62,8 @@ class PEDSCycleTests(BrainTestCase):
                 "task": {
                     "task_id": f"task_{episode_id}",
                     "title": f"Task {episode_id}",
-                    "prompt": f"Solve {episode_id}",
-                    "acceptance_tests": [f"pytest tests/{episode_id}.py"],
+                    "prompt": prompt or f"Solve {episode_id}",
+                    "acceptance_tests": acceptance_tests or [f"pytest tests/{episode_id}.py"],
                     "policy_tags": ["cycle"],
                 },
                 "snapshot": {
@@ -138,7 +140,7 @@ class PEDSCycleTests(BrainTestCase):
             "warnings": [],
         }
 
-    def _completed_training_run_for(self, candidate_id: str, suffix: str) -> dict:
+    def _completed_training_run_for(self, candidate_id: str, suffix: str, *, mode: str = "dry_run") -> dict:
         prepared = prepare_training_run(
             self.conn,
             self._distillation_manifest(candidate_id, suffix),
@@ -149,7 +151,7 @@ class PEDSCycleTests(BrainTestCase):
             self.conn,
             prepared["training_run_id"],
             operator="owner",
-            mode="dry_run",
+            mode=mode,
             artifact_dir=str(self.paths.root / "cycle-artifacts" / suffix),
         )
         return result["training_run"]
@@ -720,21 +722,89 @@ class PEDSCycleTests(BrainTestCase):
             0,
         )
 
+    def test_local_json_trainer_generated_child_runs_replay_with_trained_behavior(self) -> None:
+        candidate, _ = self._shadow_passed_candidate("trained_behavior")
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            auto_promote=True,
+            options={"promotion_reason": "explicit promotion for trained behavior replay"},
+        )
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={"distillation_reason": "ready for trained behavior replay"},
+        )
+        training_run = self._completed_training_run_for(
+            candidate["candidate_id"],
+            "trained_behavior",
+            mode="local_json_trainer",
+        )
+        replay_episodes = [
+            self._episode(
+                f"episode_cycle_trained_behavior_match_{index}",
+                split="replay",
+                timestamp=f"2026-06-02T00:0{index}:00Z",
+                prompt=f"Replay the learned shadow task signal {index}.",
+                acceptance_tests=[f"pytest tests/shadow_task_{index}.py"],
+            )
+            for index in range(3)
+        ]
+
+        bridge_result = advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={
+                "adapter_name": "cycle_trained_behavior_adapter",
+                "require_trained": True,
+                "episode_ids": [episode["episode_id"] for episode in replay_episodes],
+            },
+        )
+        generated_candidate = bridge_result["changed"]["candidate"]
+        generated_replay_job = bridge_result["changed"]["replay_job"]
+
+        self.assertEqual(generated_candidate["manifest"]["source_training_run_id"], training_run["training_run_id"])
+        self.assertIsNotNone(load_candidate_local_adapter(self.conn, generated_candidate))
+
+        replay_result = advance_peds_cycle(
+            self.conn,
+            generated_candidate["candidate_id"],
+            operator="owner",
+            replay_evaluator=acceptance_checklist_replay_evaluator,
+        )
+
+        self.assertEqual(replay_result["action"], "run_replay_job")
+        self.assertEqual(replay_result["changed"]["replay_run"]["results_written"], 3)
+        rows = self.conn.execute(
+            """
+            SELECT candidate_score, incumbent_score
+            FROM replay_results
+            WHERE job_id = ?
+            ORDER BY created_at, result_id
+            """,
+            (generated_replay_job["job_id"],),
+        ).fetchall()
+        self.assertEqual(len(rows), 3)
+        self.assertTrue(all(row["candidate_score"] > row["incumbent_score"] for row in rows))
+
     def test_cycle_does_not_duplicate_promotion_logic(self) -> None:
-        source = inspect.getsource(cycle)
+        source = Path(cycle.__file__).read_text(encoding="utf-8")
 
         self.assertIn("promote_candidate", source)
         self.assertNotIn("record_promotion_decision", source)
         self.assertNotIn("INSERT INTO promotion_decisions", source)
 
     def test_cycle_uses_existing_replay_runner_once(self) -> None:
-        source = inspect.getsource(cycle)
+        source = Path(cycle.__file__).read_text(encoding="utf-8")
 
         self.assertEqual(source.count("run_replay_job("), 1)
         self.assertNotIn("_execute_frozen_job", source)
 
     def test_cycle_has_no_network_or_model_api_calls(self) -> None:
-        source = inspect.getsource(cycle)
+        source = Path(cycle.__file__).read_text(encoding="utf-8")
 
         for forbidden in ("requests", "urllib", "openai", "anthropic", "socket"):
             self.assertNotIn(forbidden, source)

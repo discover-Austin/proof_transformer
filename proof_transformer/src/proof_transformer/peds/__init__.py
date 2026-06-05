@@ -20,6 +20,8 @@ from .evaluation_pipeline import (
 from .local_signals import (
     acceptance_checklist_canary_evaluator,
     acceptance_checklist_replay_evaluator,
+    load_candidate_local_adapter,
+    local_adapter_behavior_profile,
     local_episode_shadow_events,
     make_local_episode_shadow_event_provider,
 )
@@ -77,6 +79,8 @@ __all__ = [
     "get_candidate_current_state",
     "infer_incumbent_for_candidate",
     "get_training_run",
+    "load_candidate_local_adapter",
+    "local_adapter_behavior_profile",
     "local_episode_shadow_events",
     "mark_distillation_candidate",
     "mark_shadow_deployment",

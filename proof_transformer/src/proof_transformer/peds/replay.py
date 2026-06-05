@@ -107,6 +107,7 @@ def _execute_frozen_job(
     try:
         for episode_entry in bundle["episodes"]:
             evaluator_result = evaluator(
+                conn=conn,
                 episode=deepcopy(episode_entry["episode"]),
                 candidate=deepcopy(bundle["candidate"]),
                 incumbent=deepcopy(bundle["incumbent"]),

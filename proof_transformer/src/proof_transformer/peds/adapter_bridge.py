@@ -164,11 +164,13 @@ def create_candidate_from_training_run(
     trained = bool(registration["trained"])
     trainer_mode = (training_run.get("metrics") or {}).get("mode")
     theta_version = f"adapter:{adapter['name']}:{adapter['version']}"
+    inherited_behavior = _inherited_behavior_manifest(parent["manifest"])
 
     manifest = {
         "source": "peds_training_run",
         "source_training_run_id": training_run_id,
         "parent_candidate_id": parent_candidate_id,
+        **inherited_behavior,
         "dataset_hash": training_run["dataset_hash"],
         "trainer_name": training_run["trainer_name"],
         "trainer_mode": trainer_mode,
@@ -230,6 +232,14 @@ def _candidate_exists(conn: sqlite3.Connection, candidate_id: str) -> bool:
         conn.execute("SELECT 1 FROM candidates WHERE candidate_id = ? LIMIT 1", (candidate_id,)).fetchone()
         is not None
     )
+
+
+def _inherited_behavior_manifest(parent_manifest: dict[str, Any]) -> dict[str, Any]:
+    inherited: dict[str, Any] = {}
+    theta_strategy = parent_manifest.get("theta_strategy")
+    if theta_strategy is not None:
+        inherited["theta_strategy"] = str(theta_strategy)
+    return inherited
 
 
 def _require_non_empty_text(value: str, name: str) -> str:

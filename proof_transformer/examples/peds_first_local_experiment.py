@@ -17,10 +17,11 @@ if str(SRC) not in sys.path:
 
 from proof_transformer.db import get_connection
 from proof_transformer.paths import get_brain_paths, reset_cached_paths
-from proof_transformer.peds.cycle import run_peds_cycle_until_blocked
+from proof_transformer.peds.cycle import advance_peds_cycle, run_peds_cycle_until_blocked
 from proof_transformer.peds.local_signals import (
     acceptance_checklist_canary_evaluator,
     acceptance_checklist_replay_evaluator,
+    load_candidate_local_adapter,
     make_local_episode_shadow_event_provider,
 )
 from proof_transformer.peds.store import create_candidate, get_candidate_current_state, record_episode
@@ -178,6 +179,36 @@ def run_experiment(*, brain_root: Path, run_id: str, trainer_mode: str = "dry_ru
             fake_weights_written=fake_weights_written,
         )
 
+        trained_replay_probe = None
+        if expected_trained:
+            loaded_artifact = load_candidate_local_adapter(conn, generated_candidate)
+            with _deny_network_calls() as replay_network_attempts:
+                replay_step = advance_peds_cycle(
+                    conn,
+                    generated_candidate["candidate_id"],
+                    operator="owner",
+                    auto_promote=False,
+                    replay_evaluator=acceptance_checklist_replay_evaluator,
+                )
+            network_attempts.extend(replay_network_attempts)
+            replay_run = replay_step["changed"]["replay_run"]
+            trained_replay_result_count = conn.execute(
+                "SELECT COUNT(*) AS count FROM replay_results WHERE job_id = ?",
+                (generated_replay_job["job_id"],),
+            ).fetchone()["count"]
+            trained_replay_probe = {
+                "adapter_loaded": loaded_artifact is not None,
+                "adapter_mode": loaded_artifact.get("mode") if loaded_artifact else None,
+                "adapter_training_run_id": loaded_artifact.get("training_run_id") if loaded_artifact else None,
+                "replay_action": replay_step["action"],
+                "replay_blocked": replay_step["blocked"],
+                "replay_gate_decision": replay_run["gate"]["decision"],
+                "replay_mean_delta": replay_run["aggregate"]["mean_delta"],
+                "replay_results_written": trained_replay_result_count,
+                "state_after_replay": get_candidate_current_state(conn, generated_candidate["candidate_id"]),
+            }
+            _assert_trained_replay_probe(trained_replay_probe)
+
         decisions = [
             row["decision"]
             for row in conn.execute(
@@ -220,6 +251,7 @@ def run_experiment(*, brain_root: Path, run_id: str, trainer_mode: str = "dry_ru
             "network_attempts": list(network_attempts),
             "output_artifact": str(artifact_path),
             "stopped_reason": result["stopped_reason"],
+            "trained_replay_probe": trained_replay_probe,
             "trainer_mode": trainer_mode,
             "training_trained": training_result["trained"],
             "steps_run": result["steps_run"],
@@ -361,6 +393,16 @@ def _assert_experiment_result(
     assert not network_attempts
     assert not model_modules_loaded
     assert fake_weights_written is False
+
+
+def _assert_trained_replay_probe(probe: dict[str, Any]) -> None:
+    assert probe["adapter_loaded"] is True
+    assert probe["adapter_mode"] == "local_json_trainer"
+    assert probe["replay_action"] == "run_replay_job"
+    assert probe["replay_blocked"] is False
+    assert probe["replay_results_written"] > 0
+    assert probe["replay_gate_decision"] == "replay_winner"
+    assert probe["state_after_replay"] == "replay_winner"
 
 
 def _contains_weight_payload(value: Any) -> bool:
