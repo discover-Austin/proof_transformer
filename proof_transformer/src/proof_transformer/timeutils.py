@@ -1,10 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from threading import Lock
+
+_LAST_UTC_NOW: datetime | None = None
+_UTC_NOW_LOCK = Lock()
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    global _LAST_UTC_NOW
+    with _UTC_NOW_LOCK:
+        now = datetime.now(timezone.utc)
+        if _LAST_UTC_NOW is not None and now <= _LAST_UTC_NOW:
+            now = _LAST_UTC_NOW + timedelta(microseconds=1)
+        _LAST_UTC_NOW = now
+        return now.isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def parse_utc(value: str) -> datetime:
