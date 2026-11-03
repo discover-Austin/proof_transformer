@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 
 from common import BrainTestCase
 from proof_transformer.peds.adapter_bridge import (
@@ -136,6 +137,55 @@ class PEDSAdapterBridgeTests(BrainTestCase):
                 require_trained=True,
             )
 
+    def test_create_candidate_defaults_to_proof_mode_and_rejects_metadata_only(self) -> None:
+        parent, run = self._completed_run("default_rejects_metadata_only")
+
+        with self.assertRaises(ValueError) as raised:
+            create_candidate_from_training_run(
+                self.conn,
+                run["training_run_id"],
+                parent_candidate_id=parent["candidate_id"],
+                adapter_name="peds_theta_adapter",
+                operator="owner",
+            )
+
+        self.assertIn("metadata-only", str(raised.exception))
+
+    def test_proof_mode_requires_artifact_ref(self) -> None:
+        parent, run = self._completed_run("proof_missing_artifact", mode="local_json_trainer")
+        with self.conn:
+            self.conn.execute(
+                "UPDATE peds_training_runs SET artifact_ref = NULL WHERE training_run_id = ?",
+                (run["training_run_id"],),
+            )
+
+        validation = validate_training_artifact_for_candidate(
+            self.conn,
+            run["training_run_id"],
+            proof_mode=True,
+            expected_candidate_id=parent["candidate_id"],
+        )
+
+        self.assertFalse(validation["valid"])
+        self.assertIn("artifact_ref is required", validation["reason"])
+
+    def test_proof_mode_rejects_fake_weights_written(self) -> None:
+        parent, run = self._completed_run("proof_fake_weights", mode="local_json_trainer")
+        artifact_path = Path(run["artifact_ref"])
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        artifact["fake_weights_written"] = True
+        artifact_path.write_text(json.dumps(artifact, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+        validation = validate_training_artifact_for_candidate(
+            self.conn,
+            run["training_run_id"],
+            proof_mode=True,
+            expected_candidate_id=parent["candidate_id"],
+        )
+
+        self.assertFalse(validation["valid"])
+        self.assertIn("fake_weights_written", validation["reason"])
+
     def test_metadata_only_registration_succeeds_when_require_trained_false(self) -> None:
         _, run = self._completed_run("metadata_registration", mode="metadata_only")
 
@@ -146,6 +196,7 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             adapter_version="metadata-v1",
             operator="owner",
             require_trained=False,
+            allow_metadata_only=True,
         )
 
         self.assertFalse(registration["trained"])
@@ -179,6 +230,8 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             parent_candidate_id=parent["candidate_id"],
             adapter_name="peds_theta_adapter",
             operator="owner",
+            proof_mode=False,
+            allow_metadata_only=True,
         )
 
         self.assertEqual(candidate["parent_candidate_id"], parent["candidate_id"])
@@ -195,6 +248,8 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             parent_candidate_id=parent["candidate_id"],
             adapter_name="peds_theta_adapter",
             operator="owner",
+            proof_mode=False,
+            allow_metadata_only=True,
         )
 
         self.assertEqual(get_candidate_current_state(self.conn, candidate["candidate_id"]), "draft_candidate")
@@ -210,6 +265,8 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             parent_candidate_id=parent["candidate_id"],
             adapter_name="peds_theta_adapter",
             operator="owner",
+            proof_mode=False,
+            allow_metadata_only=True,
         )
 
         after = self.conn.execute("SELECT COUNT(*) AS count FROM promotion_decisions").fetchone()["count"]
@@ -225,6 +282,8 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             adapter_name="peds_theta_adapter",
             operator="owner",
             delta_description="bridge candidate",
+            proof_mode=False,
+            allow_metadata_only=True,
         )
         manifest = candidate["manifest"]
 
@@ -245,6 +304,7 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             adapter_name="peds_theta_adapter",
             operator="owner",
             require_trained=True,
+            proof_mode=False,
         )
         manifest = candidate["manifest"]
 
@@ -262,6 +322,7 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             adapter_name="peds_theta_adapter",
             operator="owner",
             require_trained=True,
+            proof_mode=False,
         )
 
         artifact = load_candidate_local_adapter(self.conn, candidate)
@@ -301,6 +362,7 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             adapter_name="peds_theta_adapter",
             operator="owner",
             require_trained=True,
+            proof_mode=False,
         )
 
         self.assertEqual(candidate["manifest"]["theta_strategy"], "acceptance_checklist_first")
@@ -320,6 +382,8 @@ class PEDSAdapterBridgeTests(BrainTestCase):
             parent_candidate_id=parent["candidate_id"],
             adapter_name="peds_theta_adapter",
             operator="owner",
+            proof_mode=False,
+            allow_metadata_only=True,
         )
 
         after = dict(

@@ -6,7 +6,11 @@ import sqlite3
 from copy import deepcopy
 from typing import Any
 
-from .adapter_bridge import create_candidate_from_training_run
+from .adapter_bridge import (
+    create_candidate_from_training_run,
+    record_post_training_replay_proof_rejection,
+    validate_post_training_replay_proof,
+)
 from .canary import create_canary_job, run_canary_job
 from .distillation import write_distillation_manifest
 from .evaluation_pipeline import (
@@ -16,6 +20,7 @@ from .evaluation_pipeline import (
 )
 from .promotion import mark_distillation_candidate, promote_candidate
 from .replay import run_replay_job
+from .scoring import evaluate_replay_job
 from .shadow import complete_shadow_run, record_shadow_event, start_shadow_run, summarize_shadow_run
 from .store import get_candidate_current_state
 from .trainer import run_prepared_training_run
@@ -289,12 +294,37 @@ def _advance_replay_stage(
             conn,
             job["job_id"],
             replay_evaluator,
-            write_decision=True,
-            thresholds=options.get("replay_thresholds") if isinstance(options.get("replay_thresholds"), dict) else None,
+            write_decision=not _candidate_requires_post_training_replay_proof(conn, candidate_id),
+            thresholds=_replay_thresholds(options),
         )
     except ValueError as exc:
         return _blocked(candidate_id, plan, "run_replay_job", [str(exc)])
     changed["replay_run"] = run
+
+    if _candidate_requires_post_training_replay_proof(conn, candidate_id):
+        proof = validate_post_training_replay_proof(conn, candidate_id, job["job_id"])
+        changed["replay_proof"] = proof
+        if not proof["valid"]:
+            rejection = record_post_training_replay_proof_rejection(conn, proof)
+            if rejection is not None:
+                changed["proof_rejection"] = rejection
+            return _changed(
+                conn,
+                candidate_id,
+                plan,
+                "run_replay_job",
+                changed,
+                blocked=True,
+                blockers=proof["failed_checks"],
+            )
+        replay_decision = evaluate_replay_job(
+            conn,
+            job["job_id"],
+            write_decision=True,
+            **_replay_thresholds(options),
+        )
+        changed["replay_decision"] = replay_decision
+
     return _changed(conn, candidate_id, plan, "run_replay_job", changed)
 
 
@@ -539,12 +569,25 @@ def _advance_distillation_or_training_bridge(
             blockers=["run_training=True required"],
         )
 
+    proof_mode = _proof_mode_enabled(options)
+    trainer_mode = str(options.get("trainer_mode") or ("local_json_trainer" if proof_mode else "dry_run"))
+    if proof_mode and trainer_mode != "local_json_trainer":
+        return _changed(
+            conn,
+            candidate_id,
+            plan,
+            "prepare_training_run",
+            changed,
+            blocked=True,
+            blockers=["proof_mode training requires trainer_mode='local_json_trainer'"],
+        )
+
     try:
         training_result = run_prepared_training_run(
             conn,
             training_run["training_run_id"],
             operator=operator,
-            mode=str(options.get("trainer_mode") or "dry_run"),
+            mode=trainer_mode,
             artifact_dir=options.get("artifact_dir") or options.get("training_artifact_dir"),
         )
     except ValueError as exc:
@@ -605,6 +648,8 @@ def _advance_training_bridge(
             adapter_name=str(adapter_name),
             operator=operator,
             require_trained=bool(options.get("require_trained", False)),
+            proof_mode=_proof_mode_enabled(options),
+            allow_metadata_only=bool(options.get("allow_metadata_only", False)),
             delta_description=options.get("delta_description"),
         )
         replay_job = create_post_training_replay_job(
@@ -863,6 +908,27 @@ def _can_override_plan_blockers(next_step: str, options: dict[str, Any]) -> bool
     if next_step == "create_candidate_from_training_run" and options.get("adapter_name"):
         return True
     return False
+
+
+def _proof_mode_enabled(options: dict[str, Any]) -> bool:
+    if options.get("proof_mode") is False:
+        return False
+    if options.get("allow_metadata_only") is True:
+        return False
+    if options.get("dry_run") is True:
+        return False
+    return True
+
+
+def _candidate_requires_post_training_replay_proof(conn: sqlite3.Connection, candidate_id: str) -> bool:
+    candidate = _load_candidate(conn, candidate_id)
+    manifest = candidate.get("manifest") or {}
+    return manifest.get("source") == "peds_training_run" and manifest.get("proof_mode") is not False
+
+
+def _replay_thresholds(options: dict[str, Any]) -> dict[str, Any]:
+    thresholds = options.get("replay_thresholds")
+    return dict(thresholds) if isinstance(thresholds, dict) else {}
 
 
 def _blocker_action(next_step: str) -> str:

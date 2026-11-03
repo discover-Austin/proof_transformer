@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..timeutils import utc_now
+from .local_signals import local_adapter_replay_signal
 from .promotion import summarize_promotion_evidence
 from .shadow import summarize_shadow_run
 from .store import get_candidate_current_state
@@ -47,10 +48,21 @@ def collect_distillation_sources(
     decision_timeline = promotion_evidence["decision_timeline"]
     warnings = list(promotion_evidence.get("warnings") or [])
     distillation_candidate_decision = _latest_decision(decision_timeline, "distillation_candidate")
+    invalidating_decisions = promotion_evidence.get("invalidating_decisions_after_shadow_pass") or []
+    if invalidating_decisions:
+        raise ValueError(
+            "Candidate has invalidating post-shadow evidence: "
+            + ", ".join(str(decision.get("decision")) for decision in invalidating_decisions)
+        )
+    latest_shadow_decision = promotion_evidence.get("latest_shadow_decision")
+    if latest_shadow_decision and latest_shadow_decision.get("decision") == "shadow_failed":
+        raise ValueError("Candidate latest shadow decision is shadow_failed")
 
     replay_jobs = _load_jobs_with_results(conn, candidate_id, split="replay", decision="replay_winner") if include_replay else []
     canary_jobs = _load_jobs_with_results(conn, candidate_id, split="canary", decision="canary_passed")
     shadow_runs = _load_shadow_runs_with_events(conn, candidate_id) if include_shadow else []
+    candidate = _load_candidate_packet(conn, candidate_id)
+    adapter_survivor = _adapter_survivor_summary(conn, candidate, replay_jobs)
 
     if not promotion_evidence.get("latest_replay_winner"):
         warnings.append("missing replay_winner decision")
@@ -81,6 +93,8 @@ def collect_distillation_sources(
         "replay_jobs": replay_jobs,
         "canary_jobs": canary_jobs,
         "shadow_runs": shadow_runs,
+        "candidate": candidate,
+        "adapter_survivor": adapter_survivor,
         "distillation_candidate_decision": distillation_candidate_decision,
         "include_shadow": include_shadow,
         "include_replay": include_replay,
@@ -156,6 +170,17 @@ def validate_distillation_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
         failed_checks.append("n_examples must be > 0")
     if manifest.get("n_examples") != len(examples):
         failed_checks.append("n_examples does not match examples length")
+
+    source_summary = manifest.get("source_summary")
+    if not isinstance(source_summary, dict):
+        failed_checks.append("source_summary must be a dict")
+        source_summary = {}
+    if source_summary.get("candidate_source") == "peds_training_run":
+        adapter_survivor = source_summary.get("adapter_survivor")
+        if not isinstance(adapter_survivor, dict):
+            failed_checks.append("adapter_survivor summary is required for peds_training_run sources")
+        else:
+            _validate_adapter_survivor_summary(adapter_survivor, failed_checks)
 
     expected_hash = _dataset_hash(examples)
     if manifest.get("dataset_hash") != expected_hash:
@@ -415,9 +440,14 @@ def _source_summary(source_packet: dict[str, Any]) -> dict[str, Any]:
     replay_jobs = source_packet.get("replay_jobs") or []
     canary_jobs = source_packet.get("canary_jobs") or []
     shadow_runs = source_packet.get("shadow_runs") or []
-    return {
+    candidate = source_packet.get("candidate") if isinstance(source_packet.get("candidate"), dict) else {}
+    candidate_manifest = _effective_candidate_manifest(candidate)
+    summary = {
         "candidate_id": source_packet["candidate_id"],
         "current_state": source_packet["current_state"],
+        "parent_candidate_id": candidate.get("parent_candidate_id"),
+        "mutation_target": candidate.get("mutation_target"),
+        "candidate_source": candidate_manifest.get("source"),
         "n_decisions": len(source_packet.get("decision_timeline") or []),
         "n_replay_jobs": len(replay_jobs),
         "n_replay_results": sum(len(job.get("results") or []) for job in replay_jobs),
@@ -427,6 +457,106 @@ def _source_summary(source_packet: dict[str, Any]) -> dict[str, Any]:
         "n_shadow_events": sum(len(run.get("events") or []) for run in shadow_runs),
         "distillation_candidate_decision_id": (source_packet.get("distillation_candidate_decision") or {}).get("decision_id"),
     }
+    adapter_survivor = source_packet.get("adapter_survivor")
+    if isinstance(adapter_survivor, dict):
+        summary["adapter_survivor"] = deepcopy(adapter_survivor)
+    return summary
+
+
+def _load_candidate_packet(conn: sqlite3.Connection, candidate_id: str) -> dict[str, Any]:
+    row = conn.execute("SELECT * FROM candidates WHERE candidate_id = ? LIMIT 1", (candidate_id,)).fetchone()
+    if not row:
+        raise ValueError(f"Unknown candidate: {candidate_id}")
+    candidate = dict(row)
+    candidate["manifest"] = _decode_json(candidate["manifest_json"])
+    candidate["current_state"] = get_candidate_current_state(conn, candidate_id)
+    return candidate
+
+
+def _adapter_survivor_summary(
+    conn: sqlite3.Connection,
+    candidate: dict[str, Any],
+    replay_jobs: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    manifest = _effective_candidate_manifest(candidate)
+    if manifest.get("source") != "peds_training_run":
+        return None
+
+    adapter_ref = manifest.get("adapter_ref") if isinstance(manifest.get("adapter_ref"), dict) else {}
+    adapter_registry_id = manifest.get("adapter_registry_id")
+    registry_status = _adapter_registry_status(conn, adapter_registry_id)
+    signal_candidate = dict(candidate)
+    signal_candidate["manifest"] = manifest
+    replay_proofs = []
+    for job in replay_jobs:
+        signal = local_adapter_replay_signal(conn, signal_candidate, job["job_id"])
+        deltas = [float(result["delta"]) for result in job.get("results") or [] if result.get("delta") is not None]
+        replay_proofs.append(
+            {
+                "job_id": job["job_id"],
+                "adapter_loaded": signal.get("adapter_loaded") is True,
+                "adapter_mode": signal.get("adapter_mode"),
+                "behavior_delta_count": int(signal.get("behavior_delta_count") or 0),
+                "mean_behavior_delta": signal.get("mean_behavior_delta"),
+                "max_behavior_delta": signal.get("max_behavior_delta"),
+                "replay_mean_delta": sum(deltas) / len(deltas) if deltas else None,
+                "result_count": len(job.get("results") or []),
+            }
+        )
+
+    return {
+        "source": manifest.get("source"),
+        "proof_mode": manifest.get("proof_mode") is True,
+        "parent_candidate_id": manifest.get("parent_candidate_id") or candidate.get("parent_candidate_id"),
+        "source_training_run_id": manifest.get("source_training_run_id"),
+        "trainer_mode": manifest.get("trainer_mode"),
+        "training_trained": manifest.get("training_trained") is True or manifest.get("trained") is True,
+        "artifact_ref": manifest.get("artifact_ref"),
+        "adapter_registry_id": adapter_registry_id,
+        "adapter_registry_status": registry_status or adapter_ref.get("status"),
+        "adapter_name": adapter_ref.get("name"),
+        "adapter_version": adapter_ref.get("version"),
+        "adapter_loaded_replay_jobs": sum(1 for proof in replay_proofs if proof["adapter_loaded"]),
+        "behavior_delta_count": sum(int(proof["behavior_delta_count"]) for proof in replay_proofs),
+        "replay_proofs": replay_proofs,
+    }
+
+
+def _adapter_registry_status(conn: sqlite3.Connection, adapter_registry_id: Any) -> str | None:
+    if adapter_registry_id is None:
+        return None
+    row = conn.execute(
+        "SELECT status FROM adapter_registry WHERE id = ? LIMIT 1",
+        (str(adapter_registry_id),),
+    ).fetchone()
+    return str(row["status"]) if row and row["status"] is not None else None
+
+
+def _effective_candidate_manifest(candidate: dict[str, Any]) -> dict[str, Any]:
+    manifest = candidate.get("manifest") if isinstance(candidate.get("manifest"), dict) else {}
+    nested = manifest.get("manifest")
+    if isinstance(nested, dict) and "source" not in manifest:
+        return nested
+    return manifest
+
+
+def _validate_adapter_survivor_summary(summary: dict[str, Any], failed_checks: list[str]) -> None:
+    if summary.get("source") != "peds_training_run":
+        failed_checks.append("adapter_survivor source must be peds_training_run")
+    if summary.get("proof_mode") is not True:
+        failed_checks.append("adapter_survivor proof_mode=true is required")
+    if summary.get("training_trained") is not True:
+        failed_checks.append("adapter_survivor training_trained=true is required")
+    if summary.get("trainer_mode") != "local_json_trainer":
+        failed_checks.append("adapter_survivor trainer_mode must be local_json_trainer")
+    if summary.get("adapter_registry_status") != "trained":
+        failed_checks.append("adapter_survivor adapter_registry_status must be trained")
+    if not summary.get("artifact_ref"):
+        failed_checks.append("adapter_survivor artifact_ref is required")
+    if int(summary.get("adapter_loaded_replay_jobs") or 0) <= 0:
+        failed_checks.append("adapter_survivor requires adapter_loaded replay proof")
+    if int(summary.get("behavior_delta_count") or 0) <= 0:
+        failed_checks.append("adapter_survivor requires behavior-dependent replay delta proof")
 
 
 def _canary_warnings(canary_jobs: list[dict[str, Any]]) -> list[str]:

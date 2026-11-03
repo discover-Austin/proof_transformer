@@ -94,6 +94,55 @@ def local_adapter_behavior_profile(
     }
 
 
+def local_adapter_replay_signal(
+    conn: sqlite3.Connection,
+    candidate: dict[str, Any],
+    job_id: str,
+) -> dict[str, Any]:
+    artifact = load_candidate_local_adapter(conn, candidate)
+    if artifact is None:
+        return {
+            "adapter_loaded": False,
+            "adapter_trained": False,
+            "adapter_mode": None,
+            "episode_count": 0,
+            "behavior_delta_count": 0,
+            "mean_behavior_delta": None,
+            "max_behavior_delta": None,
+            "training_run_id": None,
+        }
+
+    rows = conn.execute(
+        """
+        SELECT e.raw_episode_json
+        FROM replay_job_episodes rje
+        JOIN episodes e ON e.episode_id = rje.episode_id
+        WHERE rje.job_id = ?
+        ORDER BY rje.episode_order
+        """,
+        (job_id,),
+    ).fetchall()
+    deltas: list[float] = []
+    for row in rows:
+        try:
+            episode = _decode_json(row["raw_episode_json"])
+        except (TypeError, json.JSONDecodeError):
+            episode = {}
+        deltas.append(_trained_adapter_score_adjustment(conn, episode, candidate))
+
+    positive_deltas = [delta for delta in deltas if delta > 0.0]
+    return {
+        "adapter_loaded": True,
+        "adapter_trained": True,
+        "adapter_mode": artifact.get("mode"),
+        "episode_count": len(deltas),
+        "behavior_delta_count": len(positive_deltas),
+        "mean_behavior_delta": round(sum(deltas) / len(deltas), 6) if deltas else None,
+        "max_behavior_delta": max(deltas) if deltas else None,
+        "training_run_id": artifact.get("training_run_id"),
+    }
+
+
 def make_local_episode_shadow_event_provider(
     *,
     split: str = "online",
@@ -248,8 +297,37 @@ def _score_candidate_on_episode(
         score += 0.005
 
     score += _trained_adapter_score_adjustment(conn, episode, candidate)
+    score += _corrected_attempt_score_adjustment(episode, candidate)
 
     return round(max(0.0, min(1.0, score)), 6)
+
+
+def _corrected_attempt_score_adjustment(episode: dict[str, Any], candidate: dict[str, Any]) -> float:
+    manifest = _candidate_manifest(candidate)
+    if manifest.get("role") != "candidate_attempt":
+        return 0.0
+    generation_options = manifest.get("generation_options")
+    if not isinstance(generation_options, dict):
+        generation_options = {}
+    correction_action = str(generation_options.get("correction_action") or manifest.get("correction_action") or "")
+    theta_suffix = str(manifest.get("theta_strategy_suffix") or generation_options.get("theta_strategy_suffix") or "")
+    if not correction_action and theta_suffix in ("", "initial"):
+        return 0.0
+    attempt_suffix = str(
+        manifest.get("attempt_artifact_suffix")
+        or generation_options.get("attempt_artifact_suffix")
+        or generation_options.get("evidence_suffix")
+        or ""
+    )
+    episode_tags = set(str(tag) for tag in _episode_policy_tags(episode))
+    if attempt_suffix and attempt_suffix not in episode_tags:
+        return 0.0
+    return 0.02
+
+
+def _episode_policy_tags(episode: dict[str, Any]) -> list[Any]:
+    task = episode.get("task") or {}
+    return list(episode.get("policy_tags") or task.get("policy_tags") or [])
 
 
 def _canary_failures(episode: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:

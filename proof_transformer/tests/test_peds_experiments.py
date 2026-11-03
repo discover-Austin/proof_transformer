@@ -164,7 +164,7 @@ class PEDSExperimentTests(BrainTestCase):
                 "trainer_name": "local_adapter_stub",
                 "trainer_config": {"epochs": 1, "experiment_id": "acceptance_checklist_theta_v1"},
                 "run_training": True,
-                "trainer_mode": "dry_run",
+                "trainer_mode": "local_json_trainer",
                 "adapter_name": "acceptance_checklist_theta_adapter",
                 "output_path": str(manifest_path),
                 "artifact_dir": str(artifact_dir),
@@ -205,23 +205,28 @@ class PEDSExperimentTests(BrainTestCase):
 
         training_run = training_result["training_run"]
         self.assertEqual(training_run["status"], "completed")
-        self.assertEqual(training_run["metrics"]["mode"], "dry_run")
-        self.assertFalse(training_run["metrics"]["trained"])
-        self.assertFalse(training_result["trained"])
+        self.assertEqual(training_run["metrics"]["mode"], "local_json_trainer")
+        self.assertTrue(training_run["metrics"]["trained"])
+        self.assertTrue(training_result["trained"])
 
         artifact_path = Path(training_run["artifact_ref"])
         self.assertTrue(artifact_path.exists())
         artifact_manifest = json.loads(artifact_path.read_text(encoding="utf-8"))
-        self._assert_no_trained_true(training_result)
-        self._assert_no_trained_true(artifact_manifest)
-        self._assert_no_trained_true(generated_candidate["manifest"])
+        self.assertTrue(artifact_manifest["trained"])
+        self.assertTrue(artifact_manifest["metrics"]["trained"])
+        self.assertTrue(artifact_manifest["provenance"]["trained"])
+        self.assertEqual(artifact_manifest["mode"], "local_json_trainer")
+        self.assertIn("learned_parameters", artifact_manifest)
+        self.assertTrue(generated_candidate["manifest"]["trained"])
+        self.assertTrue(generated_candidate["manifest"]["training_trained"])
+        self.assertTrue(generated_candidate["manifest"]["proof_mode"])
 
         adapter_row = self.conn.execute(
             "SELECT name, status, dataset_hash, path FROM adapter_registry WHERE id = ?",
             (generated_candidate["manifest"]["adapter_registry_id"],),
         ).fetchone()
         self.assertEqual(adapter_row["name"], "acceptance_checklist_theta_adapter")
-        self.assertEqual(adapter_row["status"], "metadata_only")
+        self.assertEqual(adapter_row["status"], "trained")
         self.assertEqual(adapter_row["dataset_hash"], training_run["dataset_hash"])
         self.assertEqual(adapter_row["path"], str(artifact_path))
 

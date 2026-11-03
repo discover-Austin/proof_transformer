@@ -116,8 +116,11 @@ class PEDSCycleTests(BrainTestCase):
             "candidate_id": candidate_id,
             "source_type": "shadow_event",
             "source_ref": f"shadow_event_cycle_{suffix}",
-            "input": {"prompt": "Explain the cycle."},
-            "chosen": {"answer": "The cycle freezes replay before authority."},
+            "input": {
+                "prompt": "Explain the cycle replay authority signal.",
+                "acceptance_tests": ["cycle replay authority signal must be preserved"],
+            },
+            "chosen": {"answer": "The cycle replay authority signal is preserved."},
             "tags": ["peds", "shadow_event", "accepted_by_incumbent"],
             "provenance": {
                 "source_table": "shadow_events",
@@ -566,7 +569,7 @@ class PEDSCycleTests(BrainTestCase):
                 "trainer_name": "local_adapter_stub",
                 "trainer_config": {"epochs": 1},
                 "run_training": True,
-                "trainer_mode": "dry_run",
+                "trainer_mode": "local_json_trainer",
                 "adapter_name": "deterministic_cycle_adapter",
                 "output_path": str(manifest_path),
                 "artifact_dir": str(artifact_dir),
@@ -622,36 +625,39 @@ class PEDSCycleTests(BrainTestCase):
         ).fetchone()
         self.assertEqual(stored_training_run["status"], "completed")
         stored_metrics = json.loads(stored_training_run["metrics_json"])
-        self.assertEqual(stored_metrics["mode"], "dry_run")
-        self.assertFalse(stored_metrics["trained"])
-        self.assertEqual(training_run["metrics"]["trained"], False)
-        self.assertEqual(final_step["changed"]["training_result"]["trained"], False)
+        self.assertEqual(stored_metrics["mode"], "local_json_trainer")
+        self.assertTrue(stored_metrics["trained"])
+        self.assertEqual(training_run["metrics"]["trained"], True)
+        self.assertEqual(final_step["changed"]["training_result"]["trained"], True)
 
         artifact_path = stored_training_run["artifact_ref"]
         self.assertIsNotNone(artifact_path)
         persisted_artifact = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
-        self.assertFalse(artifact_manifest["trained"])
-        self.assertFalse(artifact_manifest["metrics"]["trained"])
-        self.assertFalse(artifact_manifest["provenance"]["trained"])
-        self.assertFalse(persisted_artifact["trained"])
-        self.assertFalse(persisted_artifact["metrics"]["trained"])
-        self.assertFalse(persisted_artifact["provenance"]["trained"])
+        self.assertTrue(artifact_manifest["trained"])
+        self.assertTrue(artifact_manifest["metrics"]["trained"])
+        self.assertTrue(artifact_manifest["provenance"]["trained"])
+        self.assertTrue(persisted_artifact["trained"])
+        self.assertTrue(persisted_artifact["metrics"]["trained"])
+        self.assertTrue(persisted_artifact["provenance"]["trained"])
+        self.assertIn("learned_parameters", persisted_artifact)
 
         adapter = generated_candidate["adapter_registration"]["adapter"]
         self.assertEqual(adapter["name"], "deterministic_cycle_adapter")
-        self.assertEqual(adapter["status"], "metadata_only")
+        self.assertEqual(adapter["status"], "trained")
         adapter_row = self.conn.execute(
             "SELECT name, status, dataset_hash, path FROM adapter_registry WHERE id = ?",
             (generated_candidate["manifest"]["adapter_registry_id"],),
         ).fetchone()
         self.assertEqual(adapter_row["name"], "deterministic_cycle_adapter")
-        self.assertEqual(adapter_row["status"], "metadata_only")
+        self.assertEqual(adapter_row["status"], "trained")
         self.assertEqual(adapter_row["dataset_hash"], training_run["dataset_hash"])
         self.assertEqual(adapter_row["path"], artifact_path)
 
-        self.assertFalse(generated_candidate["manifest"]["trained"])
-        self.assertEqual(generated_candidate["manifest"]["trainer_mode"], "dry_run")
-        self.assertEqual(generated_candidate["manifest"]["adapter_ref"]["status"], "metadata_only")
+        self.assertTrue(generated_candidate["manifest"]["trained"])
+        self.assertTrue(generated_candidate["manifest"]["training_trained"])
+        self.assertEqual(generated_candidate["manifest"]["trainer_mode"], "local_json_trainer")
+        self.assertEqual(generated_candidate["manifest"]["adapter_ref"]["status"], "trained")
+        self.assertTrue(generated_candidate["manifest"]["proof_mode"])
         self.assertEqual(generated_candidate["manifest"]["source_training_run_id"], training_run["training_run_id"])
 
         replay_job_row = self.conn.execute(
@@ -681,7 +687,7 @@ class PEDSCycleTests(BrainTestCase):
             0,
         )
 
-    def test_completed_training_run_creates_candidate_and_replay_job_without_authority(self) -> None:
+    def test_completed_training_run_rejects_metadata_only_by_default(self) -> None:
         candidate, _ = self._shadow_passed_candidate("completed_training")
         advance_peds_cycle(
             self.conn,
@@ -697,6 +703,7 @@ class PEDSCycleTests(BrainTestCase):
             options={"distillation_reason": "ready for completed training bridge test"},
         )
         training_run = self._completed_training_run_for(candidate["candidate_id"], "completed_training")
+        before_candidates = self.conn.execute("SELECT COUNT(*) AS count FROM candidates").fetchone()["count"]
 
         result = advance_peds_cycle(
             self.conn,
@@ -705,12 +712,51 @@ class PEDSCycleTests(BrainTestCase):
             options={"adapter_name": "cycle_adapter"},
         )
 
+        self.assertEqual(result["action"], "create_candidate_from_training_run")
+        self.assertTrue(result["blocked"])
+        self.assertIn("metadata-only", "; ".join(result["blockers"]))
+        self.assertEqual(
+            self.conn.execute("SELECT COUNT(*) AS count FROM candidates").fetchone()["count"],
+            before_candidates,
+        )
+        self.assertEqual(training_run["metrics"]["trained"], False)
+
+    def test_completed_training_run_non_proof_mode_creates_candidate_and_replay_job_without_authority(self) -> None:
+        candidate, _ = self._shadow_passed_candidate("completed_training_non_proof")
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            auto_promote=True,
+            options={"promotion_reason": "explicit promotion for non-proof cycle bridge test"},
+        )
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={"distillation_reason": "ready for non-proof completed training bridge test"},
+        )
+        training_run = self._completed_training_run_for(candidate["candidate_id"], "completed_training_non_proof")
+
+        result = advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={
+                "adapter_name": "cycle_adapter_non_proof",
+                "proof_mode": False,
+                "allow_metadata_only": True,
+            },
+        )
+
         new_candidate = result["changed"]["candidate"]
         replay_job = result["changed"]["replay_job"]
         self.assertEqual(result["action"], "create_candidate_from_training_run")
         self.assertEqual(new_candidate["parent_candidate_id"], candidate["candidate_id"])
         self.assertEqual(new_candidate["mutation_target"], "theta")
         self.assertEqual(new_candidate["manifest"]["source_training_run_id"], training_run["training_run_id"])
+        self.assertFalse(new_candidate["manifest"]["proof_mode"])
+        self.assertFalse(new_candidate["manifest"]["training_trained"])
         self.assertEqual(get_candidate_current_state(self.conn, new_candidate["candidate_id"]), "draft_candidate")
         self.assertEqual(replay_job["candidate_id"], new_candidate["candidate_id"])
         self.assertEqual(replay_job["split"], "replay")
@@ -747,8 +793,8 @@ class PEDSCycleTests(BrainTestCase):
                 f"episode_cycle_trained_behavior_match_{index}",
                 split="replay",
                 timestamp=f"2026-06-02T00:0{index}:00Z",
-                prompt=f"Replay the learned shadow task signal {index}.",
-                acceptance_tests=[f"pytest tests/shadow_task_{index}.py"],
+                prompt=f"Cycle replay authority signal {index}.",
+                acceptance_tests=[f"cycle replay authority signal must be preserved {index}"],
             )
             for index in range(3)
         ]
@@ -778,6 +824,15 @@ class PEDSCycleTests(BrainTestCase):
 
         self.assertEqual(replay_result["action"], "run_replay_job")
         self.assertEqual(replay_result["changed"]["replay_run"]["results_written"], 3)
+        self.assertTrue(replay_result["changed"]["replay_proof"]["valid"])
+        self.assertTrue(replay_result["changed"]["replay_proof"]["adapter_loaded"])
+        self.assertGreater(replay_result["changed"]["replay_proof"]["replay_mean_delta"], 0.0)
+        self.assertGreater(
+            replay_result["changed"]["replay_proof"]["behavior_signal"]["behavior_delta_count"],
+            0,
+        )
+        self.assertEqual(replay_result["changed"]["replay_decision"]["gate"]["decision"], "replay_winner")
+        self.assertEqual(get_candidate_current_state(self.conn, generated_candidate["candidate_id"]), "replay_winner")
         rows = self.conn.execute(
             """
             SELECT candidate_score, incumbent_score
@@ -789,6 +844,122 @@ class PEDSCycleTests(BrainTestCase):
         ).fetchall()
         self.assertEqual(len(rows), 3)
         self.assertTrue(all(row["candidate_score"] > row["incumbent_score"] for row in rows))
+
+    def test_proof_generated_child_replay_rejects_adapter_loaded_false(self) -> None:
+        candidate, _ = self._shadow_passed_candidate("adapter_missing")
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            auto_promote=True,
+            options={"promotion_reason": "explicit promotion for adapter missing replay proof"},
+        )
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={"distillation_reason": "ready for adapter missing replay proof"},
+        )
+        self._completed_training_run_for(
+            candidate["candidate_id"],
+            "adapter_missing",
+            mode="local_json_trainer",
+        )
+        replay_episodes = [
+            self._episode(
+                f"episode_cycle_adapter_missing_match_{index}",
+                split="replay",
+                timestamp=f"2026-06-02T01:0{index}:00Z",
+                prompt=f"Explain the cycle replay authority signal {index}.",
+                acceptance_tests=[f"cycle replay authority {index}"],
+            )
+            for index in range(3)
+        ]
+        bridge_result = advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={
+                "adapter_name": "cycle_adapter_missing_adapter",
+                "episode_ids": [episode["episode_id"] for episode in replay_episodes],
+            },
+        )
+        generated_candidate = bridge_result["changed"]["candidate"]
+        artifact_path = Path(generated_candidate["manifest"]["artifact_ref"])
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        artifact["trained"] = False
+        artifact["metrics"]["trained"] = False
+        artifact["provenance"]["trained"] = False
+        artifact_path.write_text(json.dumps(artifact, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+        replay_result = advance_peds_cycle(
+            self.conn,
+            generated_candidate["candidate_id"],
+            operator="owner",
+            replay_evaluator=self._passing_replay_evaluator,
+        )
+
+        self.assertTrue(replay_result["blocked"])
+        self.assertIn("adapter_loaded=true", "; ".join(replay_result["blockers"]))
+        self.assertFalse(replay_result["changed"]["replay_proof"]["adapter_loaded"])
+        self.assertEqual(get_candidate_current_state(self.conn, generated_candidate["candidate_id"]), "rejected")
+
+    def test_proof_generated_child_replay_requires_behavior_dependent_delta(self) -> None:
+        candidate, _ = self._shadow_passed_candidate("no_behavior_delta")
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            auto_promote=True,
+            options={"promotion_reason": "explicit promotion for behavior delta replay proof"},
+        )
+        advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={"distillation_reason": "ready for behavior delta replay proof"},
+        )
+        self._completed_training_run_for(
+            candidate["candidate_id"],
+            "no_behavior_delta",
+            mode="local_json_trainer",
+        )
+        replay_episodes = [
+            self._episode(
+                f"episode_cycle_no_behavior_delta_{index}",
+                split="replay",
+                timestamp=f"2026-06-02T02:0{index}:00Z",
+                prompt=f"qzxv blorp numeron {index}",
+                acceptance_tests=[f"zzzz_no_overlap_{index}"],
+            )
+            for index in range(3)
+        ]
+        bridge_result = advance_peds_cycle(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            options={
+                "adapter_name": "cycle_no_behavior_delta_adapter",
+                "episode_ids": [episode["episode_id"] for episode in replay_episodes],
+            },
+        )
+        generated_candidate = bridge_result["changed"]["candidate"]
+
+        replay_result = advance_peds_cycle(
+            self.conn,
+            generated_candidate["candidate_id"],
+            operator="owner",
+            replay_evaluator=self._passing_replay_evaluator,
+        )
+
+        self.assertTrue(replay_result["blocked"])
+        self.assertIn("behavior-dependent adapter replay delta", "; ".join(replay_result["blockers"]))
+        self.assertEqual(
+            replay_result["changed"]["replay_proof"]["behavior_signal"]["behavior_delta_count"],
+            0,
+        )
+        self.assertGreater(replay_result["changed"]["replay_proof"]["replay_mean_delta"], 0.0)
+        self.assertEqual(get_candidate_current_state(self.conn, generated_candidate["candidate_id"]), "rejected")
 
     def test_cycle_does_not_duplicate_promotion_logic(self) -> None:
         source = Path(cycle.__file__).read_text(encoding="utf-8")

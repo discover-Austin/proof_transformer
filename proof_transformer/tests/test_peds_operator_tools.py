@@ -139,7 +139,7 @@ class PEDSOperatorToolTests(unittest.TestCase):
         self.assertIn("peds_trained_local_generations.py", one[1])
         self.assertEqual(one[-1], "1")
         self.assertEqual(three[-1], "3")
-        self.assertEqual(validation[-3:], ["-s", "tests", "-p", "test_peds*.py"][-3:])
+        self.assertEqual(validation[-3:], ["-s", "tests", "-p", "test_peds_*.py"][-3:])
         self.assertIn("unittest", validation)
 
     def _write_sample_report(self, run_id: str, *, generations: int) -> Path:

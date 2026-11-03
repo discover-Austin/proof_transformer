@@ -310,6 +310,55 @@ class PEDSTrainerTests(BrainTestCase):
             result_two["artifact_manifest"]["learned_parameters"],
         )
 
+    def test_local_json_trainer_ignores_chosen_metadata_when_learning_tokens(self) -> None:
+        candidate = self._candidate("local_metadata_noise")
+        example = self._example(
+            candidate["candidate_id"],
+            suffix="metadata_noise",
+            chosen="Current signal should survive metadata noise.",
+            acceptance_tests=["current_signal acceptance"],
+        )
+        example["chosen"] = {
+            "acceptance_checklist": ["current_signal current_acceptance"],
+            "final_message": "Current signal should survive metadata noise.",
+            "metadata": {
+                "adapter_behavior_profile": {
+                    "learned_parameters": {
+                        "top_chosen_tokens": [
+                            {"token": "previous_signal", "count": 999},
+                            {"token": "285714", "count": 999},
+                        ],
+                        "top_input_tokens": [
+                            {"token": "stale_parent_token", "count": 999},
+                        ],
+                    }
+                }
+            },
+        }
+        run = prepare_training_run(
+            self.conn,
+            self._manifest(candidate["candidate_id"], examples=[example]),
+            trainer_name="local_json_trainer",
+            trainer_config={"epochs": 1},
+        )
+
+        result = run_prepared_training_run(
+            self.conn,
+            run["training_run_id"],
+            operator="owner",
+            mode="local_json_trainer",
+            artifact_dir=str(self.paths.root / "peds" / "local-metadata-noise"),
+        )
+
+        chosen_tokens = {
+            item["token"]
+            for item in result["artifact_manifest"]["learned_parameters"]["top_chosen_tokens"]
+        }
+        self.assertIn("current_signal", chosen_tokens)
+        self.assertNotIn("previous_signal", chosen_tokens)
+        self.assertNotIn("stale_parent_token", chosen_tokens)
+        self.assertNotIn("285714", chosen_tokens)
+
     def test_local_json_trainer_does_not_import_model_modules_or_call_network(self) -> None:
         run = self._prepared_run("local_no_network")
         before_model_modules = {name for name in sys.modules if name.startswith("proof_transformer.model")}

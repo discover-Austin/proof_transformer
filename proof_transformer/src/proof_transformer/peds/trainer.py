@@ -242,7 +242,7 @@ def _learn_local_json_parameters(examples: list[dict[str, Any]]) -> tuple[dict[s
         tags = [str(tag) for tag in example.get("tags") or []]
         tag_counts.update(tags)
 
-        chosen_tokens = _tokens(example.get("chosen"))
+        chosen_tokens = _chosen_signal_tokens(example.get("chosen"))
         input_tokens = _tokens(example.get("input"))
         acceptance_tokens = _tokens(_acceptance_tests(example))
         prompt_tokens = _tokens(_prompt_text(example))
@@ -299,6 +299,24 @@ def _acceptance_tests(example: dict[str, Any]) -> Any:
 def _prompt_text(example: dict[str, Any]) -> Any:
     input_value = example.get("input") if isinstance(example.get("input"), dict) else {}
     return input_value.get("prompt")
+
+
+def _chosen_signal_tokens(value: Any) -> list[str]:
+    signal = _chosen_signal_value(value)
+    if signal not in (None, "", [], {}):
+        return _tokens(signal)
+    return _tokens(value)
+
+
+def _chosen_signal_value(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+
+    signal_keys = ("acceptance_checklist", "answer", "final_message", "patch", "actions")
+    signal_values = [value[key] for key in signal_keys if key in value and value[key] not in (None, "", [], {})]
+    if signal_values:
+        return signal_values
+    return None
 
 
 def _tokens(value: Any) -> list[str]:

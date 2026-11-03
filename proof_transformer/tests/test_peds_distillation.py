@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from common import BrainTestCase
+from proof_transformer.learning.adapter_registry import AdapterRegistry
 from proof_transformer.peds.canary import create_canary_job, evaluate_canary_job
 from proof_transformer.peds.distillation import (
     build_distillation_examples,
@@ -14,11 +15,17 @@ from proof_transformer.peds.distillation import (
 from proof_transformer.peds.promotion import mark_distillation_candidate, mark_shadow_deployment, promote_candidate
 from proof_transformer.peds.scoring import evaluate_replay_job
 from proof_transformer.peds.shadow import complete_shadow_run, record_shadow_event, start_shadow_run
-from proof_transformer.peds.store import create_candidate, create_replay_job, record_episode, record_replay_result
+from proof_transformer.peds.store import (
+    create_candidate,
+    create_replay_job,
+    record_episode,
+    record_promotion_decision,
+    record_replay_result,
+)
 
 
 class PEDSDistillationTests(BrainTestCase):
-    def _candidate(self, suffix: str, mutation_target: str = "phi") -> dict:
+    def _candidate(self, suffix: str, mutation_target: str = "phi", *, manifest: dict | None = None) -> dict:
         return create_candidate(
             self.conn,
             {
@@ -29,7 +36,7 @@ class PEDSDistillationTests(BrainTestCase):
                 "theta_version": None,
                 "psi_version": "psi_v1",
                 "delta_description": f"candidate {suffix}",
-                "manifest": {"note": suffix},
+                "manifest": manifest or {"note": suffix},
             },
         )
 
@@ -177,6 +184,90 @@ class PEDSDistillationTests(BrainTestCase):
             )
         return candidate, incumbent
 
+    def _trained_adapter_survivor(self, suffix: str) -> tuple[dict, dict]:
+        incumbent = self._candidate(f"{suffix}_incumbent", mutation_target="rho")
+        artifact_path = Path(self.paths.root) / "distillation-adapters" / f"{suffix}.json"
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact = {
+            "artifact_type": "peds_adapter_artifact_manifest",
+            "training_run_id": f"peds_training_run_{suffix}",
+            "candidate_id": f"candidate_{suffix}_candidate",
+            "dataset_hash": f"sha256:{suffix}",
+            "trainer_name": "local_json_trainer",
+            "mode": "local_json_trainer",
+            "trained": True,
+            "operator": "owner",
+            "n_examples": 1,
+            "created_at": "2026-06-09T00:00:00Z",
+            "learned_parameters": {
+                "feature_weights": {
+                    "acceptance_token_overlap": 1.0,
+                    "prompt_token_overlap": 1.0,
+                    "shadow_acceptance_signal": 1.0,
+                    "replay_win_signal": 1.0,
+                },
+                "source_type_weights": {"shadow_event": 1.0},
+                "tag_weights": {"accepted_by_incumbent": 1.0},
+                "top_input_tokens": [
+                    {"token": "solve", "count": 3},
+                    {"token": "pytest", "count": 3},
+                ],
+                "top_chosen_tokens": [{"token": "solved", "count": 3}],
+            },
+            "metrics": {
+                "mode": "local_json_trainer",
+                "trained": True,
+                "n_examples": 1,
+                "dataset_hash": f"sha256:{suffix}",
+            },
+            "provenance": {"trained": True, "metadata_only": False},
+        }
+        artifact_path.write_text(json.dumps(artifact, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        adapter = AdapterRegistry(self.conn).register_adapter(
+            name=f"distillation_adapter_{suffix}",
+            version="v1",
+            path=artifact_path,
+            dataset_hash=artifact["dataset_hash"],
+            status="trained",
+        )
+        candidate = self._candidate(
+            f"{suffix}_candidate",
+            manifest={
+                "source": "peds_training_run",
+                "proof_mode": True,
+                "parent_candidate_id": incumbent["candidate_id"],
+                "source_training_run_id": artifact["training_run_id"],
+                "trainer_mode": "local_json_trainer",
+                "trained": True,
+                "training_trained": True,
+                "artifact_ref": str(artifact_path),
+                "adapter_registry_id": adapter["id"],
+                "adapter_ref": {
+                    "name": adapter["name"],
+                    "version": adapter["version"],
+                    "path": adapter["path"],
+                    "status": adapter["status"],
+                },
+            },
+        )
+        self._write_replay_winner(candidate, incumbent, suffix)
+        self._write_canary_passed(candidate, incumbent, suffix)
+        self._write_shadow_passed(candidate, incumbent, suffix)
+        promote_candidate(self.conn, candidate["candidate_id"], operator="owner", reason="trained survivor promotion")
+        mark_shadow_deployment(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            reason="trained survivor deployment marker",
+        )
+        mark_distillation_candidate(
+            self.conn,
+            candidate["candidate_id"],
+            operator="owner",
+            reason="trained survivor selected for distillation",
+        )
+        return candidate, incumbent
+
     def _manual_source_packet(self) -> dict:
         return {
             "candidate_id": "candidate_manual",
@@ -257,6 +348,68 @@ class PEDSDistillationTests(BrainTestCase):
         self.assertEqual(len(packet["shadow_runs"]), 1)
         self.assertEqual(len(packet["shadow_runs"][0]["events"]), 12)
         self.assertIsNotNone(packet["distillation_candidate_decision"])
+
+    def test_collect_distillation_sources_rejects_shadow_failed_after_shadow_pass(self) -> None:
+        candidate, incumbent = self._survivor("invalidating_shadow_failed")
+        shadow_run = self.conn.execute(
+            "SELECT shadow_run_id FROM shadow_runs WHERE candidate_id = ? ORDER BY started_at DESC LIMIT 1",
+            (candidate["candidate_id"],),
+        ).fetchone()
+        record_promotion_decision(
+            self.conn,
+            {
+                "candidate_id": candidate["candidate_id"],
+                "incumbent_id": incumbent["candidate_id"],
+                "shadow_run_id": shadow_run["shadow_run_id"],
+                "decision": "shadow_failed",
+                "reason": "later shadow failure invalidates survivor evidence",
+            },
+        )
+        record_promotion_decision(
+            self.conn,
+            {
+                "candidate_id": candidate["candidate_id"],
+                "incumbent_id": incumbent["candidate_id"],
+                "shadow_run_id": shadow_run["shadow_run_id"],
+                "decision": "distillation_candidate",
+                "reason": "corrupt fixture attempted to re-mark invalidated evidence",
+            },
+        )
+
+        with self.assertRaises(ValueError) as raised:
+            collect_distillation_sources(self.conn, candidate["candidate_id"])
+
+        self.assertIn("invalidating post-shadow evidence", str(raised.exception))
+
+    def test_trained_adapter_survivor_manifest_includes_adapter_replay_proof(self) -> None:
+        candidate, _ = self._trained_adapter_survivor("trained_survivor")
+
+        manifest = write_distillation_manifest(self.conn, candidate["candidate_id"])
+        adapter_summary = manifest["source_summary"]["adapter_survivor"]
+        validation = validate_distillation_manifest(manifest)
+
+        self.assertTrue(validation["valid"], validation["reason"])
+        self.assertEqual(manifest["source_summary"]["candidate_source"], "peds_training_run")
+        self.assertEqual(adapter_summary["source"], "peds_training_run")
+        self.assertTrue(adapter_summary["proof_mode"])
+        self.assertTrue(adapter_summary["training_trained"])
+        self.assertEqual(adapter_summary["trainer_mode"], "local_json_trainer")
+        self.assertEqual(adapter_summary["adapter_registry_status"], "trained")
+        self.assertGreater(adapter_summary["adapter_loaded_replay_jobs"], 0)
+        self.assertGreater(adapter_summary["behavior_delta_count"], 0)
+
+    def test_validate_distillation_manifest_rejects_trained_adapter_summary_without_loaded_replay_proof(self) -> None:
+        candidate, _ = self._trained_adapter_survivor("trained_survivor_missing_proof")
+        manifest = write_distillation_manifest(self.conn, candidate["candidate_id"])
+        adapter_summary = manifest["source_summary"]["adapter_survivor"]
+        adapter_summary["adapter_loaded_replay_jobs"] = 0
+        adapter_summary["behavior_delta_count"] = 0
+
+        result = validate_distillation_manifest(manifest)
+
+        self.assertFalse(result["valid"])
+        self.assertIn("adapter_loaded replay proof", result["reason"])
+        self.assertIn("behavior-dependent replay delta proof", result["reason"])
 
     def test_build_distillation_examples_builds_shadow_examples_from_accepted_events(self) -> None:
         candidate, _ = self._survivor("shadow_examples")
