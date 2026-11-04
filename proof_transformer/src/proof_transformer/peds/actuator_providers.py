@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -28,7 +31,7 @@ def build_actuator_command(*, provider: str, task_path: Path) -> list[str] | Non
         return None
     task_text = path.read_text(encoding="utf-8", errors="replace")
     if provider == "codex":
-        return ["codex", "exec", task_text]
+        return [*_codex_command(), "exec", task_text]
     if provider == "pi":
         return ["pi", "exec", task_text]
     return None
@@ -118,8 +121,48 @@ def run_actuator_task(
     return result
 
 
+def _codex_command() -> list[str]:
+    """Executable argv prefix for the Codex CLI.
+
+    On Windows, npm installs Codex as a .cmd shim that Python's
+    subprocess/CreateProcess cannot execute directly: shutil.which finds
+    the shim, but running it raises FileNotFoundError, so the probe
+    reports command_not_found. The real program is the node script at
+    <npm dir>/node_modules/@openai/codex/bin/codex.js, so run it via
+    node. Non-Windows hosts and hosts without a resolvable codex.js
+    (or node) keep the plain "codex" command, preserving prior behaviour.
+    """
+    if sys.platform != "win32":
+        return ["codex"]
+    codex_js = _find_codex_js()
+    if codex_js is None:
+        return ["codex"]
+    node = shutil.which("node")
+    if node is None:
+        return ["codex"]
+    return [node, str(codex_js)]
+
+
+def _find_codex_js() -> Path | None:
+    candidates: list[Path] = []
+    shim = shutil.which("codex")
+    if shim:
+        candidates.append(Path(shim).parent / "node_modules" / "@openai" / "codex" / "bin" / "codex.js")
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        candidates.append(Path(appdata) / "npm" / "node_modules" / "@openai" / "codex" / "bin" / "codex.js")
+    for path_entry in os.environ.get("PATH", "").split(os.pathsep):
+        if path_entry:
+            candidates.append(Path(path_entry) / "node_modules" / "@openai" / "codex" / "bin" / "codex.js")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def _probe_codex() -> dict[str, Any]:
-    probes = [["codex", "--help"], ["codex", "exec", "--help"]]
+    base = _codex_command()
+    probes = [base + ["--help"], base + ["exec", "--help"]]
     help_result = _run_probe(probes[0])
     if not help_result.get("found") or help_result.get("returncode") != 0:
         return _provider("codex", False, False, probes, str(help_result.get("reason") or "codex_help_unavailable"))

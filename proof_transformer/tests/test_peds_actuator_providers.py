@@ -56,6 +56,57 @@ class PEDSActuatorProviderTests(unittest.TestCase):
         self.assertEqual(result["status"], "manual_actuator_required")
         self.assertFalse(result["ok"])
 
+
+    def test_codex_command_uses_node_codex_js_on_windows(self) -> None:
+        npm_dir = self.root / "npm"
+        codex_js = npm_dir / "node_modules" / "@openai" / "codex" / "bin" / "codex.js"
+        codex_js.parent.mkdir(parents=True)
+        codex_js.write_text("// codex", encoding="utf-8")
+        shim = npm_dir / "codex.cmd"
+
+        def fake_which(name: str) -> str | None:
+            if name == "codex":
+                return str(shim)
+            if name == "node":
+                return "node.exe"
+            return None
+
+        with (
+            mock.patch.object(actuator_providers.sys, "platform", "win32"),
+            mock.patch.object(actuator_providers.shutil, "which", side_effect=fake_which),
+        ):
+            command = actuator_providers._codex_command()
+
+        self.assertEqual(command, ["node.exe", str(codex_js)])
+
+    def test_codex_probe_runs_node_codex_js_not_the_cmd_shim(self) -> None:
+        npm_dir = self.root / "npm"
+        codex_js = npm_dir / "node_modules" / "@openai" / "codex" / "bin" / "codex.js"
+        codex_js.parent.mkdir(parents=True)
+        codex_js.write_text("// codex", encoding="utf-8")
+        shim = npm_dir / "codex.cmd"
+
+        def fake_which(name: str) -> str | None:
+            if name == "codex":
+                return str(shim)
+            if name == "node":
+                return "node.exe"
+            return None
+
+        probe = mock.Mock(returncode=0, stdout="", stderr="")
+        with (
+            mock.patch.object(actuator_providers.sys, "platform", "win32"),
+            mock.patch.object(actuator_providers.shutil, "which", side_effect=fake_which),
+            mock.patch.object(actuator_providers.subprocess, "run", return_value=probe),
+        ):
+            detected = actuator_providers.detect_actuator_providers()
+
+        by_name = {item["name"]: item for item in detected["providers"]}
+        self.assertTrue(by_name["codex"]["available"])
+        self.assertTrue(by_name["codex"]["supports_noninteractive"])
+        self.assertEqual(by_name["codex"]["probe_commands"][0], ["node.exe", str(codex_js), "--help"])
+        self.assertEqual(detected["selected_provider"], "codex")
+
     def test_build_command_returns_list_and_source_has_no_shell_true(self) -> None:
         task_path = self.root / "task.md"
         task_path.write_text("# task", encoding="utf-8")
