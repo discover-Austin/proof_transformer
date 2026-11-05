@@ -103,6 +103,8 @@ def run_actuator_task(
             command,
             input=stdin_input,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
             timeout=max(1, int(timeout_seconds)),

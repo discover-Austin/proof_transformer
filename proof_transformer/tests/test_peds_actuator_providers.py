@@ -189,6 +189,21 @@ class PEDSActuatorProviderTests(unittest.TestCase):
         recorded = json.loads(Path(result["result_path"]).read_text(encoding="utf-8"))
         self.assertEqual(recorded["status"], "failed")
 
+    def test_codex_run_encodes_stdin_as_utf8(self) -> None:
+        task_path = self.root / "task.md"
+        task_text = "# task \u2014 em dash and a \u2019smart quote\u2019"
+        task_path.write_text(task_text, encoding="utf-8")
+        completed = mock.Mock(returncode=0, stdout="", stderr="")
+        with (
+            mock.patch.object(actuator_providers, "detect_actuator_providers", return_value=self._codex_detection()),
+            mock.patch.object(actuator_providers.subprocess, "run", return_value=completed) as mock_run,
+        ):
+            result = actuator_providers.run_actuator_task(task_path=task_path, provider="codex", output_dir=self.root / "out")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(mock_run.call_args.kwargs["input"], task_text)
+        self.assertEqual(mock_run.call_args.kwargs["encoding"], "utf-8")
+
     def test_manual_provider_returns_manual_required_and_probe_summary(self) -> None:
         task_path = self.root / "task.md"
         task_path.write_text("# task", encoding="utf-8")
