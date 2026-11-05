@@ -27,7 +27,7 @@ from proof_transformer.peds.brain import (  # noqa: E402
     record_codex_task_result,
 )
 
-DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_TIMEOUT_SECONDS = 1500
 
 
 def main(argv: list[str] | None = None) -> int:
