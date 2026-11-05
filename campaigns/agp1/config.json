@@ -1,0 +1,30 @@
+{
+  "campaign_id": "AGP-1",
+  "task": "file_not_found_summary",
+  "bta_dir": "C:\\breeding-tool-agent",
+  "engine_file": "breeding_tool_agents.py",
+  "engine_sha256_frozen": "397a5fda96986e34a358b506fbcfe07908d553be3b94bb7c49bbd5f5d0912ac1",
+  "primary": {
+    "seeds": [7, 23, 53],
+    "pop_size": 160,
+    "generations": 40,
+    "cap_seconds_per_seed": 7200,
+    "use_seed_programs": false
+  },
+  "smoke": {
+    "seed": 999,
+    "pop_size": 16,
+    "generations": 3,
+    "cap_seconds": 900
+  },
+  "artifact_cap_bytes": 524288000,
+  "gate": {
+    "train": 20,
+    "validation": 20,
+    "audit": 40,
+    "stress": 20,
+    "hidden_final_min": 19,
+    "champions_needed": 2,
+    "seeds_total": 3
+  }
+}
