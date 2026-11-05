@@ -169,7 +169,7 @@ class PEDSActuatorProviderTests(unittest.TestCase):
         self.assertEqual(result["command"][-2:], ["exec", "-"])
         self.assertNotIn(task_text, result["command"])
         self.assertEqual(mock_run.call_count, 1)
-        self.assertEqual(mock_run.call_args.kwargs.get("input"), task_text)
+        self.assertEqual(mock_run.call_args.kwargs.get("input"), task_text.encode("utf-8"))
         self.assertNotIn(task_text, mock_run.call_args.args[0])
 
     def test_run_actuator_task_records_failed_result_on_oserror(self) -> None:
@@ -189,7 +189,7 @@ class PEDSActuatorProviderTests(unittest.TestCase):
         recorded = json.loads(Path(result["result_path"]).read_text(encoding="utf-8"))
         self.assertEqual(recorded["status"], "failed")
 
-    def test_codex_run_encodes_stdin_as_utf8(self) -> None:
+    def test_codex_run_passes_utf8_bytes_on_stdin(self) -> None:
         task_path = self.root / "task.md"
         task_text = "# task \u2014 em dash and a \u2019smart quote\u2019"
         task_path.write_text(task_text, encoding="utf-8")
@@ -201,8 +201,9 @@ class PEDSActuatorProviderTests(unittest.TestCase):
             result = actuator_providers.run_actuator_task(task_path=task_path, provider="codex", output_dir=self.root / "out")
 
         self.assertEqual(result["status"], "completed")
-        self.assertEqual(mock_run.call_args.kwargs["input"], task_text)
-        self.assertEqual(mock_run.call_args.kwargs["encoding"], "utf-8")
+        self.assertEqual(mock_run.call_args.kwargs["input"], task_text.encode("utf-8"))
+        self.assertFalse(mock_run.call_args.kwargs["text"])
+        self.assertNotIn("encoding", mock_run.call_args.kwargs)
 
     def test_manual_provider_returns_manual_required_and_probe_summary(self) -> None:
         task_path = self.root / "task.md"

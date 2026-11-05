@@ -98,19 +98,23 @@ def run_actuator_task(
     stdout_path = output_dir / "stdout.txt"
     stderr_path = output_dir / "stderr.txt"
     stdin_input = _actuator_input(provider=provider_name, task_path=task_path)
+    # Pass bytes explicitly instead of relying on subprocess' Windows text
+    # wrapper.  A long-running worker may retain an older locale/code-page
+    # configuration, and Codex requires UTF-8 on stdin for non-ASCII prompts.
+    stdin_bytes = stdin_input.encode("utf-8") if stdin_input is not None else None
     try:
         completed = subprocess.run(
             command,
-            input=stdin_input,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+            input=stdin_bytes,
+            text=False,
             capture_output=True,
             check=False,
             timeout=max(1, int(timeout_seconds)),
         )
-        stdout_path.write_text(completed.stdout, encoding="utf-8", errors="replace")
-        stderr_path.write_text(completed.stderr, encoding="utf-8", errors="replace")
+        stdout_text = _decode_process_output(completed.stdout)
+        stderr_text = _decode_process_output(completed.stderr)
+        stdout_path.write_text(stdout_text, encoding="utf-8", errors="replace")
+        stderr_path.write_text(stderr_text, encoding="utf-8", errors="replace")
         status = "completed" if completed.returncode == 0 else "failed"
         result = _base_result(task_path=task_path, output_dir=output_dir, provider_info=provider_info, detection=detection)
         result.update(
@@ -146,8 +150,8 @@ def run_actuator_task(
             next_recommendation="Inspect the spawn error and record a follow-up result for PEDS.",
         )
     except subprocess.TimeoutExpired as exc:
-        stdout_path.write_text(exc.stdout or "", encoding="utf-8", errors="replace")
-        stderr_path.write_text(exc.stderr or "", encoding="utf-8", errors="replace")
+        stdout_path.write_text(_decode_process_output(exc.stdout), encoding="utf-8", errors="replace")
+        stderr_path.write_text(_decode_process_output(exc.stderr), encoding="utf-8", errors="replace")
         result = _base_result(task_path=task_path, output_dir=output_dir, provider_info=provider_info, detection=detection)
         result.update(
             ok=False,
@@ -164,6 +168,15 @@ def run_actuator_task(
     result["result_path"] = str(result_path)
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
     return result
+
+
+def _decode_process_output(value: Any) -> str:
+    """Normalize mocked and real subprocess output to text for artifacts."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
 
 
 def _codex_command() -> list[str]:
