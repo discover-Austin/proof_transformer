@@ -117,6 +117,78 @@ class PEDSActuatorProviderTests(unittest.TestCase):
         self.assertIsInstance(command, list)
         self.assertNotIn("shell=True", source)
 
+
+    def _codex_detection(self) -> dict:
+        return {
+            "providers": [
+                {
+                    "name": "codex",
+                    "available": True,
+                    "supports_noninteractive": True,
+                    "probe_commands": [],
+                    "reason": None,
+                },
+                {
+                    "name": "manual",
+                    "available": True,
+                    "supports_noninteractive": False,
+                    "probe_commands": [],
+                    "reason": None,
+                },
+            ],
+            "selected_provider": "codex",
+        }
+
+    def test_codex_build_command_uses_stdin_marker_not_task_text(self) -> None:
+        task_text = "# big task " + ("x" * 60000)
+        task_path = self.root / "task.md"
+        task_path.write_text(task_text, encoding="utf-8")
+
+        command = actuator_providers.build_actuator_command(provider="codex", task_path=task_path)
+
+        self.assertIsInstance(command, list)
+        self.assertEqual(command[-2:], ["exec", "-"])
+        self.assertNotIn(task_text, command)
+        for element in command:
+            self.assertNotIn("big task", element)
+
+    def test_codex_run_passes_task_text_via_stdin_input(self) -> None:
+        task_text = "# task via stdin"
+        task_path = self.root / "task.md"
+        task_path.write_text(task_text, encoding="utf-8")
+        completed = mock.Mock(returncode=0, stdout="done", stderr="")
+
+        with (
+            mock.patch.object(actuator_providers, "detect_actuator_providers", return_value=self._codex_detection()),
+            mock.patch.object(actuator_providers.subprocess, "run", return_value=completed) as mock_run,
+        ):
+            result = actuator_providers.run_actuator_task(task_path=task_path, provider="codex", output_dir=self.root / "out")
+
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["command"][-2:], ["exec", "-"])
+        self.assertNotIn(task_text, result["command"])
+        self.assertEqual(mock_run.call_count, 1)
+        self.assertEqual(mock_run.call_args.kwargs.get("input"), task_text)
+        self.assertNotIn(task_text, mock_run.call_args.args[0])
+
+    def test_run_actuator_task_records_failed_result_on_oserror(self) -> None:
+        task_path = self.root / "task.md"
+        task_path.write_text("# task", encoding="utf-8")
+
+        with (
+            mock.patch.object(actuator_providers, "detect_actuator_providers", return_value=self._codex_detection()),
+            mock.patch.object(actuator_providers.subprocess, "run", side_effect=OSError("[WinError 206] The filename or extension is too long")),
+        ):
+            result = actuator_providers.run_actuator_task(task_path=task_path, provider="codex", output_dir=self.root / "out")
+
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(result["ok"])
+        self.assertIn("WinError 206", result["summary"])
+        self.assertIn("codex_spawn_failed", result["issues_found"])
+        recorded = json.loads(Path(result["result_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(recorded["status"], "failed")
+
     def test_manual_provider_returns_manual_required_and_probe_summary(self) -> None:
         task_path = self.root / "task.md"
         task_path.write_text("# task", encoding="utf-8")

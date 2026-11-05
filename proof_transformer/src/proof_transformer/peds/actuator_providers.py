@@ -29,12 +29,33 @@ def build_actuator_command(*, provider: str, task_path: Path) -> list[str] | Non
         return None
     if not path.exists():
         return None
-    task_text = path.read_text(encoding="utf-8", errors="replace")
     if provider == "codex":
-        return [*_codex_command(), "exec", task_text]
+        # Codex reads the prompt from stdin when the argument is "-"
+        # (see `codex exec --help`). Passing a whole task file as an argv
+        # element overflows the Windows CreateProcess command-line limit
+        # (~32,767 chars) and raises WinError 206 for large tasks, so the
+        # task text travels via subprocess input instead (see
+        # run_actuator_task, which supplies it through _actuator_input).
+        return [*_codex_command(), "exec", "-"]
+    task_text = path.read_text(encoding="utf-8", errors="replace")
     if provider == "pi":
         return ["pi", "exec", task_text]
     return None
+
+
+def _actuator_input(*, provider: str, task_path: Path) -> str | None:
+    """Stdin payload for a provider run, or None to inherit no input.
+
+    Only codex receives the task text this way: its command ends with
+    "exec -", which reads instructions from stdin. Other providers keep
+    their existing argv behaviour and get no stdin payload.
+    """
+    if provider != "codex":
+        return None
+    path = Path(task_path)
+    if not path.exists():
+        return None
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def run_actuator_task(
@@ -76,9 +97,11 @@ def run_actuator_task(
 
     stdout_path = output_dir / "stdout.txt"
     stderr_path = output_dir / "stderr.txt"
+    stdin_input = _actuator_input(provider=provider_name, task_path=task_path)
     try:
         completed = subprocess.run(
             command,
+            input=stdin_input,
             text=True,
             capture_output=True,
             check=False,
@@ -99,6 +122,26 @@ def run_actuator_task(
             summary=f"{provider_name} provider returned {completed.returncode}.",
             issues_found=[] if status == "completed" else [f"{provider_name}_returncode_nonzero"],
             next_recommendation="PEDS should evaluate the recorded actuator result.",
+        )
+    except OSError as exc:
+        # A provider that cannot even be spawned (e.g. WinError 206 from an
+        # over-long command line, or a missing executable) must surface as a
+        # recorded failed actuator result, never as an exception that kills
+        # the brain loop.
+        stdout_path.write_text("", encoding="utf-8", errors="replace")
+        stderr_path.write_text(str(exc), encoding="utf-8", errors="replace")
+        result = _base_result(task_path=task_path, output_dir=output_dir, provider_info=provider_info, detection=detection)
+        result.update(
+            ok=False,
+            status="failed",
+            actuator=provider_name,
+            command=command,
+            returncode=None,
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            summary=f"{provider_name} provider failed to start: {exc}",
+            issues_found=[f"{provider_name}_spawn_failed"],
+            next_recommendation="Inspect the spawn error and record a follow-up result for PEDS.",
         )
     except subprocess.TimeoutExpired as exc:
         stdout_path.write_text(exc.stdout or "", encoding="utf-8", errors="replace")
