@@ -240,3 +240,92 @@ live brain's steps may interleave (they are brief and mostly idle)."** Reason: t
 now runs continuously (ops\gigi_runner.py, ~2-minute cycles) and this campaign is hers —
 forbidding interleave with brain steps would forbid the campaign from ever running.
 Approved as part of Austin's 2026-11-05 03:50 EST campaign approval.
+
+---
+
+## FAIL path executed — 2026-11-05
+
+The primary arm's verdict was **FAIL** (run report:
+`~/workspace/projects/agp/runs/agp1-primary-20261105T090355Z/report.md`): on all three
+seeds a generation-0 random founder already scored a perfect 20/20, 20/20, 40/40, 20/20,
+so no lineage ever accumulated a mutation/crossover event and gate item 5 failed on
+every seed. hidden_final was never evaluated by the primary arm.
+
+**Austin's decision, 2026-11-05 04:55 EST:** "Follow the prereg: promote the portfolio
+champion and redirect breeding to the arena line." The §6 Stop prescription was executed
+the same night, as follows.
+
+### Secondary (portfolio) arm — run 2026-11-05, labeled NOT GATED
+
+Run through the campaign runner's `--arm portfolio` mode (the engine's stock
+`run_file_task_evolution` code path, engine SHA-256 verified unchanged at the frozen
+`397a5fda…`), same frozen splits, same seeds 7/23/53. Run report:
+`campaigns/agp1/runs/agp1-portfolio-20261105T095925Z/` (mirrored to
+`~/workspace/projects/agp/runs/agp1-portfolio-20261105T095925Z/`). Whole arm completed
+in ~3 seconds — the typed-skeleton strategy solves this family immediately, which is
+itself the measurement the secondary arm existed to make: there is no
+breeding-vs-portfolio gap to measure on this task, because random founders and the
+skeleton both trivialize it; the typed grammar is the productive mechanism.
+
+Per seed (identical outcome on all three):
+
+| seed | train | validation | audit | stress | hidden_final | winning strategy | promoted by engine |
+|---|---|---|---|---|---|---|---|
+| 7 | 20/20 | 20/20 | 40/40 | 20/20 | 20/20 | typed_skeleton | yes |
+| 23 | 20/20 | 20/20 | 40/40 | 20/20 | 20/20 | typed_skeleton | yes |
+| 53 | 20/20 | 20/20 | 40/40 | 20/20 | 20/20 | typed_skeleton | yes |
+
+Distilled champion program (byte-identical across seeds, 4 ops):
+`READ_TEXT(pytest_output.txt) → EXTRACT_TRACEBACK_BLOCK → CLASSIFY_PYTHON_ERROR →
+WRITE_JSON(failure_report.json)`. `used_evolutionary_search: false`;
+`destructive_write_attempts: 0`.
+
+**hidden_final accounting (precise):** the stock engine computes hidden_final exactly
+once per evolve, for that run's distilled program, at the end of the search
+(breeding_tool_agents.py line 4971), with `hidden_final_used_in_search: false`,
+`hidden_final_used_in_pruning: false`, `hidden_final_used_in_optimizer: false`. The
+portfolio arm therefore carries three such engine-internal computations — one per seed
+run, each on the (identical) distilled champion program — exactly as the stock CLI has
+always behaved for the proven families. The primary arm's reserved once-only
+re-audit evaluation was never consumed by the primary arm, and **no additional
+evaluation was performed at promotion**: the champion was promoted by registering the
+engine's own already-evaluated, already-saved package (below), not by re-running
+anything.
+
+### Promotion — the champion is in BTA's pool
+
+The champion (seed 7, first in the frozen order) was registered into BTA's promoted
+file-agent pool through the engine's own record format: the package BTA's
+`save_file_agent_package` produced during the stock run was placed under the next pool
+id by `campaigns/agp1/promote_portfolio_champion.py` (numbering mirrors the engine's
+`next_agent_dir`; only `genome.json`'s `agent_id` was set to the pool id; all other
+records byte-identical; the script performs no search and no evaluation, and refuses
+to run if the pool already holds the task).
+
+- **Pool record: `C:\breeding-tool-agent\file_agents\agent_000139`** (pool 134 → 135),
+  scorecard `promoted: true`, scores as tabled above, hidden_final 20/20.
+- Registration record: `pool_registration.json` in the portfolio run dir.
+- With this promotion, **every Repo Doctor diagnosis family in `BTA_RUNNER_ROADMAP`
+  now holds a promoted agent** (pytest_failure_summary agent_000130,
+  syntax_error_summary agent_000135, module_not_found_summary agent_000136,
+  import_error_summary agent_000137, assertion_failure_summary agent_000138,
+  file_not_found_summary agent_000139). The roadmap's recorded next action for this
+  step is: "Extend BTA_RUNNER_ROADMAP with no_traceback_failure_summary, then run the
+  next diagnosis template" — the `repo_doctor/all_diagnosis` continuation §6 pointed
+  at is unblocked.
+
+### Standing conclusion and redirect (now in force)
+
+- **Bred-only search is STOPPED for diagnosis families.** The conclusion stands as
+  §6 wrote it: typed synthesis (the strict grammar + skeleton portfolio) is the
+  productive mechanism for this domain.
+- **The breeding budget is redirected to the arena genome line**
+  (`C:\breeding-tool-agent-full-breeder`), where bred survivors already exist.
+  Baseline recorded at redirect time (verified from its BREEDING_LEDGER.md tail,
+  2026-07-19): 105 arena runs, 9 promoted arena survivors, last run NO_PROMOTION,
+  `stage_6_rate` 0.000, transfer 4/12. Scoping for the first arena campaign:
+  `~/workspace/projects/agp/AGP2-ARENA-SCOPING.md` (scoping only — nothing was
+  launched in the arena, and no full-breeder code was touched).
+- This execution was journaled into the live PEDS brain via its supported library
+  API (`agp_failpath_executed` journal entry, 2026-11-05), alongside the runner's
+  own `agp_campaign_started` / `agp_campaign_verdict` entries for the portfolio arm.
